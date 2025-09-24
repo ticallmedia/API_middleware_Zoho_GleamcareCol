@@ -145,14 +145,17 @@ def from_zoho():
 
     return jsonify({"status":"ignored"})
 
-"""
+
 #________________________________________________________________________________________
+#endpoint, esto permite recibir el refresh_token, que se genera en zoho manualmente
 @app.route('/oauth2callback')
 def oauth_callback():
     code = request.args.get('code')
     if code:
         return f"Código recibido correctamente: {code}"
     return "No se recibió ningún código."
+
+"""
 #________________________________________________________________________________________
 @app.route('/debug-token')
 def debug_token():
@@ -176,8 +179,12 @@ def verify():
 #if __name__ == "__main__":
 #    app.run(debug=True, port=5000)
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render asigna un puerto dinámico
-    app.run(host="0.0.0.0", port=port)
+#if __name__ == "__main__":
+#    port = int(os.environ.get("PORT", 5000))  # Render asigna un puerto dinámico
+#    app.run(host="0.0.0.0", port=port)
+
+# --- Ejecución del Programa ---
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=80, debug=True)
 
 #________________________________________________________________________________________
