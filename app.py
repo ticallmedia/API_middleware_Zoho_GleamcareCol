@@ -35,11 +35,14 @@ ZOHO_CLIENT_ID = os.getenv("ZOHO_CLIENT_ID")
 ZOHO_CLIENT_SECRET = os.getenv("ZOHO_CLIENT_SECRET")
 ZOHO_REFRESH_TOKEN = os.getenv("ZOHO_REFRESH_TOKEN")
 ZOHO_PORTAL_NAME = os.getenv("ZOHO_PORTAL_NAME") 
-ZOHO_SALESIQ_BASE = os.getenv("ZOHO_SALESIQ_BASE", "https://salesiq.zoho.com/api/v2")
+#ZOHO_PORTAL_NAME = os.getenv("ZOHO_PORTAL_NAME", "ticallmedia")
+ZOHO_SALESIQ_BASE = os.getenv("ZOHO_SALESIQ_BASE")
+#ZOHO_SALESIQ_BASE = os.getenv("ZOHO_SALESIQ_BASE", "https://salesiq.zoho.com/api/v2")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+#VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "mi_token_de_verificacion")
 
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "mi_token_de_verificacion")
-
-APP_A_URL = os.getenv("APP_A_URL", "https://beta-ticallmedia-w.onrender.com")
+APP_A_URL = os.getenv("APP_A_URL")
+#APP_A_URL = os.getenv("APP_A_URL", "https://beta-ticallmedia-w.onrender.com")
 #________________________________________________________________________________________
 
 #Obtiene un nuevo access_token usando el refresh_token
