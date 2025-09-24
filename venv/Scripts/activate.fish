@@ -18,12 +18,29 @@ function deactivate -d 'Exit virtualenv mode and return to the normal environmen
     # reset old environment variables
     if test -n "$_OLD_VIRTUAL_PATH"
         # https://github.com/fish-shell/fish-shell/issues/436 altered PATH handling
-        if test (echo $FISH_VERSION | head -c 1) -lt 3
+        if test (string sub -s 1 -l 1 $FISH_VERSION) -lt 3
             set -gx PATH (_fishify_path "$_OLD_VIRTUAL_PATH")
         else
             set -gx PATH $_OLD_VIRTUAL_PATH
         end
         set -e _OLD_VIRTUAL_PATH
+    end
+
+    if test -n ''
+      if test -n "$_OLD_VIRTUAL_TCL_LIBRARY";
+        set -gx TCL_LIBRARY "$_OLD_VIRTUAL_TCL_LIBRARY";
+        set -e _OLD_VIRTUAL_TCL_LIBRARY;
+      else;
+        set -e TCL_LIBRARY;
+      end
+    end
+    if test -n ''
+      if test -n "$_OLD_VIRTUAL_TK_LIBRARY";
+        set -gx TK_LIBRARY "$_OLD_VIRTUAL_TK_LIBRARY";
+        set -e _OLD_VIRTUAL_TK_LIBRARY;
+      else;
+        set -e TK_LIBRARY;
+      end
     end
 
     if test -n "$_OLD_VIRTUAL_PYTHONHOME"
@@ -58,15 +75,28 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV 'C:\Users\trono\Downloads\TICALLMEDIA\API_prueba_CRM\venv'
+set -gx VIRTUAL_ENV 'C:\Users\trono\Downloads\TICALLMEDIA\API_middleware_Zoho\venv'
 
 # https://github.com/fish-shell/fish-shell/issues/436 altered PATH handling
-if test (echo $FISH_VERSION | head -c 1) -lt 3
+if test (string sub -s 1 -l 1 $FISH_VERSION) -lt 3
     set -gx _OLD_VIRTUAL_PATH (_bashify_path $PATH)
 else
     set -gx _OLD_VIRTUAL_PATH $PATH
 end
 set -gx PATH "$VIRTUAL_ENV"'/'Scripts $PATH
+
+if test -n ''
+  if set -q TCL_LIBRARY;
+    set -gx _OLD_VIRTUAL_TCL_LIBRARY $TCL_LIBRARY;
+  end
+  set -gx TCL_LIBRARY ''''
+end
+if test -n ''
+  if set -q TK_LIBRARY;
+    set -gx _OLD_VIRTUAL_TK_LIBRARY $TK_LIBRARY;
+  end
+  set -gx TK_LIBRARY ''''
+end
 
 # Prompt override provided?
 # If not, just use the environment name.

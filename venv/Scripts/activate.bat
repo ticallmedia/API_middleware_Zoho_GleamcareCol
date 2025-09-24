@@ -5,7 +5,7 @@
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-@set "VIRTUAL_ENV=C:\Users\trono\Downloads\TICALLMEDIA\API_prueba_CRM\venv"
+@set "VIRTUAL_ENV=C:\Users\trono\Downloads\TICALLMEDIA\API_middleware_Zoho\venv"
 
 @set "VIRTUAL_ENV_PROMPT="
 @if NOT DEFINED VIRTUAL_ENV_PROMPT (
@@ -32,6 +32,12 @@
 :ENDIFVHOME
 
 @set PYTHONHOME=
+
+@if defined TCL_LIBRARY @set "_OLD_VIRTUAL_TCL_LIBRARY=%TCL_LIBRARY%"
+@if NOT ""=="" @set "TCL_LIBRARY="
+
+@if defined TK_LIBRARY @set "_OLD_VIRTUAL_TK_LIBRARY=%TK_LIBRARY%"
+@if NOT ""=="" @set "TK_LIBRARY="
 
 @REM if defined _OLD_VIRTUAL_PATH (
 @if not defined _OLD_VIRTUAL_PATH @goto ENDIFVPATH1

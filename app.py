@@ -1,68 +1,74 @@
-from flask import Flask, render_template, request
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template, request, jsonify
 from datetime import datetime
 from dotenv import load_dotenv
 import requests
 import os
+import logging
+
 #________________________________________________________________________________________
-# Cargar variables de entorno desde .env
+"""
+App middleware Zoho
+
+Varsión: 1
+
+Descripción: 
+
+Es una App de puente entre, la App de WABA y Zoho SalesIQ, orientado la comunición hacia el 
+agente humano y que permite utilizar las caracteristicas de Sales IQ como Chat Center.
+
+Caracteristicas: 
+- Cargar variables de entorno desde .env
+- no cuenta con bd
+
+
+"""
+#________________________________________________________________________________________
 load_dotenv()
-#________________________________________________________________________________________
 app = Flask(__name__)
 
-# Configuración de la base de datos SQLite
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///metapython.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+#Log de eventos ajustado para utilizarlo en render
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Inicializar base de datos
-db = SQLAlchemy(app)
+#________________________________________________________________________________________
+#Varibles de entorno
+ZOHO_CLIENT_ID = os.getenv("ZOHO_CLIENT_ID")
+ZOHO_CLIENT_SECRET = os.getenv("ZOHO_CLIENT_SECRET")
+ZOHO_REFRESH_TOKEN = os.getenv("ZOHO_REFRESH_TOKEN")
+ZOHO_PORTAL_NAME = os.getenv("ZOHO_PORTAL_NAME") 
+ZOHO_SALESIQ_BASE = os.getenv("ZOHO_SALESIQ_BASE", "https://salesiq.zoho.com/api/v2")
 
-# Modelo de tabla para logs
-class Log(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    fecha_y_hora = db.Column(db.DateTime, default=datetime.utcnow)
-    texto = db.Column(db.TEXT)
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "mi_token_de_verificacion")
 
-# Crear la tabla si no existe
-with app.app_context():
-    db.create_all()
+APP_A_URL = os.getenv("APP_A_URL", "https://beta-ticallmedia-w.onrender.com")
+#________________________________________________________________________________________
 
-# Funciones auxiliares
-
-def agregar_mensajes_log(texto):
-    nuevo_registro = Log(texto=texto)
-    db.session.add(nuevo_registro)
-    db.session.commit()
-
-def ordenar_por_fecha_y_hora(registros):
-    return sorted(registros, key=lambda x: x.fecha_y_hora, reverse=True)
-
+#Obtiene un nuevo access_token usando el refresh_token
 def get_access_token():
     url = "https://accounts.zoho.com/oauth/v2/token"
     params = {
-        "refresh_token": os.getenv("ZOHO_REFRESH_TOKEN"),
-        "client_id": os.getenv("ZOHO_CLIENT_ID"),
-        "client_secret": os.getenv("ZOHO_CLIENT_SECRET"),
+        "refresh_token": ZOHO_REFRESH_TOKEN,
+        "client_id": ZOHO_CLIENT_ID,
+        "client_secret": ZOHO_CLIENT_SECRET,
         "grant_type": "refresh_token"
     }
     response = requests.post(url, params=params)
     data = response.json()
-    print("DEBUG:", data)
+    logging.info(f"Access token:, {data}")
+
+    """
     if "access_token" in data:
         return data["access_token"]
     else:
         return None
+    """
+    if "access_token" not in data:
+        raise Exception(f"Error al refrescar token: {data}")
+    return data["access_token"]
+    
 #________________________________________________________________________________________
-# Rutas principales
 
-@app.route('/')
-def index():
-    registros = Log.query.all()
-    registros_ordenados = ordenar_por_fecha_y_hora(registros)
-    return render_template('index.html', registros=registros_ordenados)
-#________________________________________________________________________________________
-@app.route('/enviar-a-zoho')
-def enviar_a_zoho():
+#1. Mensaje entrante desde App A (usuario WhatsApp → SalesIQ)
+def enviar_a_salesiq(visitor_id, nombre,telefono, mensaje=None):
     access_token = get_access_token()
     if not access_token:
         return "❌ Error al obtener access_token"
@@ -72,33 +78,74 @@ def enviar_a_zoho():
         "Content-Type": "application/json"
     }
 
-    payload = {
-        "data": [
-            {
-                "First_Name": "Joaquin",
-                "Last_Name": "Chavarriaga",
-                "Email": "joaquin@example.com",
-                "Mobile": "3100000000",
-                "Origen": "WhatsApp"
-            }
-        ],
-        "duplicate_check_fields": ["Email"]
+    #Crear o actualizar el visitante
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
+
+    payload ={
+        "id": visitor_id, 
+        "name":nombre or visitor_id,
+        "contacnumber":telefono,
+        "custom_fields": {"canal":"whatsapp"}
     }
 
-    url = os.getenv("ZOHO_API_URL") + "/upsert"
+    #url = os.getenv("ZOHO_API_URL") + "/upsert"
     response = requests.post(url, headers=headers, json=payload)
 
+    #enviar mensaje incial si existe
+    if mensaje:
+        msg_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}/message"
+        msg_payload = {"content": mensaje, "type": "text"}
+        requests.post(msg_url, headers=headers, json=msg_payload)
+
+    
     try:
         data = response.json()
     except:
         data = {"error": "Respuesta no válida de Zoho", "raw": response.text}
 
     if response.status_code in [200, 201]:
-        agregar_mensajes_log("✅ Lead enviado correctamente")
+        logging.info(f"✅ Lead enviado correctamente")
         return "✅ Lead enviado correctamente"
     else:
-        agregar_mensajes_log("❌ Error al enviar Lead: " + str(data))
+        logging.info(f"❌ Error al enviar Lead: " + str(data))
         return f"❌ Error al enviar Lead: {data}", 500
+
+#________________________________________________________________________________________
+#Rutas Flask
+
+#webhook desde App A (mensajes entrantes de whatsapp)
+
+@app.route('/api/from-waba', methods=['POST'])
+def from_waba():
+    data = request.json
+    user_msg = data.get("message")
+    user_id = data.get("user_id")
+
+    visitor_id = f"whatsapp_{user_id}"
+    response = enviar_a_salesiq(visitor_id, nombre=f"WhatsApp {user_id}", telefono=user_id, mensaje=user_msg)
+
+    return jsonify({"status": "sent_to_zoho", "zoho_response": response})
+
+
+#webhook desde zoho (respuesta de agentes)
+@app.route('/api/from-zoho', methods=['POST'])
+def from_zoho():
+    data = request.json
+    agent_msg = data.get("message")
+    visitor_id = data.get("visitor_id")
+
+    if visitor_id and visitor_id.startswith("whatsapp_"):
+        user_id = visitor_id.replace("whatsapp_","")
+        #logging.info(f"Enviar a whatsapp ({user_id}): {agent_msg}")
+        
+        # Reenviar a App A (endpoint /send)
+        response = requests.post(f"{APP_A_URL}/send",json={"to": user_id, "msg": agent_msg})
+
+        return jsonify({"status": "sent_to_app_a","app_a_response": response.json()})
+
+    return jsonify({"status":"ignored"})
+
+"""
 #________________________________________________________________________________________
 @app.route('/oauth2callback')
 def oauth_callback():
@@ -114,4 +161,18 @@ def debug_token():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80, debug=True)
+"""
+#________________________________________________________________________________________
+
+#Endpoint opcional para verificación
+@app.route("/verify", methods=["GET"])
+def verify():
+    token = request.args.get("token")
+    if token == VERIFY_TOKEN:
+        return jsonify({"status": "verified"}), 200
+    return jsonify({"status": "forbidden"}), 403
+#________________________________________________________________________________________
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
 #________________________________________________________________________________________
