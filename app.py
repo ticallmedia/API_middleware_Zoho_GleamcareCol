@@ -129,14 +129,27 @@ def from_waba():
 
     return jsonify({"status": "sent_to_zoho", "zoho_response": response})
 
+@app.route("/webhook", methods=["GET"])
+def webhook_verify():
+    token = request.args.get("verify_token")
+    if token == VERIFY_TOKEN:
+        # Zoho envía un "challenge" que debes devolver
+        return request.args.get("challenge", "ok")
+    return "Error: token inválido", 403
+
+
 
 #webhook desde zoho (respuesta de agentes)
 @app.route('/api/from-zoho', methods=['POST'])
 def from_zoho():
     data = request.json
+    event = data.get("event")
+
+    """
     agent_msg = data.get("message")
     visitor_id = data.get("visitor_id")
 
+    
     if visitor_id and visitor_id.startswith("whatsapp_"):
         user_id = visitor_id.replace("whatsapp_","")
         #logging.info(f"Enviar a whatsapp ({user_id}): {agent_msg}")
@@ -147,7 +160,21 @@ def from_zoho():
         return jsonify({"status": "sent_to_app_a","app_a_response": response.json()})
 
     return jsonify({"status":"ignored"})
+    """
+    if event == "agent_message":
+        agent_msg = data["message"]["text"]
+        visitor_id = data["visitor"]["id"]
 
+        if visitor_id.startswith("whatsapp_"):
+            user_id = visitor_id.replace("whatsapp_", "")
+            requests.post(f"{APP_A_URL}/send", json={"to": user_id, "msg": agent_msg})
+            return jsonify({"status": "sent_to_whatsapp"})
+
+    elif event == "visitor_message":
+        # 👀 Esto puede usarse si quieres almacenar logs en B
+        print(f"Mensaje de visitante: {data['message']['text']}")
+
+    return jsonify({"status": "ok"})
 
 #________________________________________________________________________________________
 #endpoint, esto permite recibir el refresh_token, que se genera en zoho manualmente
