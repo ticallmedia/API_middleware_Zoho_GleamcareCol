@@ -71,7 +71,7 @@ def get_access_token():
 #________________________________________________________________________________________
 
 #1. Mensaje entrante desde App A (usuario WhatsApp → SalesIQ)
-def enviar_a_salesiq(visitor_id, nombre,telefono, mensaje=None):
+def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None):
     access_token = get_access_token()
     if not access_token:
         return "❌ Error al obtener access_token"
@@ -81,37 +81,38 @@ def enviar_a_salesiq(visitor_id, nombre,telefono, mensaje=None):
         "Content-Type": "application/json"
     }
 
-    #Crear o actualizar el visitante
+    # si no viene visitor_id, usamos telefono como fallback
+    visitor_id = str(visitor_id or telefono)
+
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
 
-    payload ={
-        "id": visitor_id, 
-        "name":nombre or visitor_id,
-        "contactnumber":telefono,
-        "custom_fields": {"canal":"whatsapp"}
+    payload = {
+        "id": visitor_id,
+        "name": nombre or visitor_id,
+        "contactnumber": telefono,
+        "custom_fields": {"canal": "whatsapp"}
     }
 
-    #url = os.getenv("ZOHO_API_URL") + "/upsert"
     response = requests.post(url, headers=headers, json=payload)
 
-    #enviar mensaje incial si existe
+    # enviar mensaje inicial si existe
     if mensaje:
         msg_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}/message"
         msg_payload = {"content": mensaje, "type": "text"}
         requests.post(msg_url, headers=headers, json=msg_payload)
 
-    
     try:
         data = response.json()
     except:
         data = {"error": "Respuesta no válida de Zoho", "raw": response.text}
 
     if response.status_code in [200, 201]:
-        logging.info(f"✅ Lead enviado correctamente")
+        logging.info("✅ Lead enviado correctamente")
         return "✅ Lead enviado correctamente"
     else:
-        logging.info(f"❌ Error al enviar Lead: " + str(data))
+        logging.info(f"❌ Error al enviar Lead: {data}")
         return f"❌ Error al enviar Lead: {data}", 500
+
 
 #________________________________________________________________________________________
 #Rutas Flask
