@@ -87,7 +87,7 @@ def enviar_a_salesiq(visitor_id, nombre,telefono, mensaje=None):
     payload ={
         "id": visitor_id, 
         "name":nombre or visitor_id,
-        "contacnumber":telefono,
+        "contactnumber":telefono,
         "custom_fields": {"canal":"whatsapp"}
     }
 
