@@ -72,7 +72,7 @@ def get_access_token():
 #________________________________________________________________________________________
 
 #1. Mensaje entrante desde App A (usuario WhatsApp → SalesIQ)
-def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None):
+def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
     access_token = get_access_token()
     if not access_token:
         return "❌ Error al obtener access_token"
@@ -94,6 +94,10 @@ def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None):
         "custom_fields": {"canal": "whatsapp"}
     }
 
+    # 👇 asignar tag si existe
+    if tag_id:
+        payload["tag_ids"] = [tag_id]
+
     response = requests.post(url, headers=headers, json=payload)
 
     # enviar mensaje inicial si existe
@@ -109,10 +113,11 @@ def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None):
 
     if response.status_code in [200, 201]:
         logging.info("✅ Lead enviado correctamente")
-        return "✅ Lead enviado correctamente"
+        return data   # ✅ ahora devolvemos la respuesta JSON completa
     else:
         logging.info(f"❌ Error al enviar Lead: {data}")
         return f"❌ Error al enviar Lead: {data}", 500
+
 
 
 #________________________________________________________________________________________
@@ -129,38 +134,55 @@ def from_waba():
 
     visitor_id = f"whatsapp_{user_id}"
 
-    response = enviar_a_salesiq(visitor_id, nombre=f"WhatsApp {user_id}", telefono=user_id, mensaje=user_msg)
-
-    # 2️⃣ Si viene un tag, crearlo/asignarlo en Zoho
+    # 1️⃣ Procesar tag (si llega)
     tag_result = None
+    tag_id = None
     if tag:
-        tag_result = create_tag(
-            name=tag,
-            color="#FF5733",
-            module="conversations"
-        )
+        tag_id, tag_result = get_or_create_tag(tag)
 
-    return jsonify({"status": "sent_to_zoho", "zoho_response": response,"tag_response": tag_result})
+    # 2️⃣ Enviar mensaje al SalesIQ con tag (si existe)
+    response = enviar_a_salesiq(
+        visitor_id,
+        nombre=f"WhatsApp {user_id}",
+        telefono=user_id,
+        mensaje=user_msg,
+        tag_id=tag_id  # 👈 ahora pasamos el id, no el nombre
+    )
+
+    return jsonify({
+        "status": "sent_to_zoho",
+        "zoho_response": response,
+        "tag_response": tag_result
+    })
 
 
-
-def create_tag(name, color="#FF5733", module="conversations"):
+def get_or_create_tag(name, color="#FF5733", module="conversations"):
     url = "https://salesiq.zoho.com/api/v2/ticallmedia/tags"
     headers = {
-        "Authorization": f"Zoho-oauthtoken {ZOHO_ACCESS_TOKEN}",  # 👈 asegúrate de tenerlo vigente
+        "Authorization": f"Zoho-oauthtoken {ZOHO_ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
+
+    # 🔍 1. Buscar tag existente
+    resp = requests.get(url, headers=headers).json()
+    for tag in resp.get("data", []):
+        if tag["name"] == name:
+            return tag["id"], {"status": "exists", "id": tag["id"], "name": name}
+
+    # ➕ 2. Crear tag si no existe
     payload = {
         "name": name,
         "color": color,
         "module": module
     }
+    resp = requests.post(url, headers=headers, json=payload).json()
 
-    resp = requests.post(url, headers=headers, json=payload, timeout=5)
-    try:
-        return resp.json()
-    except Exception:
-        return {"error": "No se pudo parsear respuesta", "raw": resp.text}
+    if "data" in resp and len(resp["data"]) > 0:
+        new_tag = resp["data"][0]
+        return new_tag["id"], {"status": "created", "id": new_tag["id"], "name": new_tag["name"]}
+    else:
+        return None, {"status": "error", "resp": resp}
+
 
 
 
