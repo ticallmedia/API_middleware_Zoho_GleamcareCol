@@ -130,23 +130,23 @@ def from_waba():
     data = request.json
     user_msg = data.get("message")
     user_id = data.get("user_id")
-    tag = data.get("tag")
+    tag_name = data.get("tag")   # 👈 nombre del tag
 
     visitor_id = f"whatsapp_{user_id}"
 
-    # 1️⃣ Procesar tag (si llega)
-    tag_result = None
+    # 1️⃣ resolver el tag_id si se mandó un tag
     tag_id = None
-    if tag:
-        tag_id, tag_result = get_or_create_tag(tag)
+    tag_result = None
+    if tag_name:
+        tag_id, tag_result = get_or_create_tag(tag_name)
 
-    # 2️⃣ Enviar mensaje al SalesIQ con tag (si existe)
+    # 2️⃣ enviar visitante/mensaje a Zoho con tag opcional
     response = enviar_a_salesiq(
         visitor_id,
         nombre=f"WhatsApp {user_id}",
         telefono=user_id,
         mensaje=user_msg,
-        tag_id=tag_id  # 👈 ahora pasamos el id, no el nombre
+        tag_id=tag_id
     )
 
     return jsonify({
@@ -156,32 +156,49 @@ def from_waba():
     })
 
 
-def get_or_create_tag(name, color="#FF5733", module="conversations"):
-    url = "https://salesiq.zoho.com/api/v2/ticallmedia/tags"
+def get_or_create_tag(tag_name, color="#FF5733", module="visitors"):
+    """
+    Verifica si un tag ya existe en Zoho.
+    Si no existe, lo crea.
+    Retorna (tag_id, respuesta_completa).
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return None, {"error": "❌ No access_token"}
+
     headers = {
-        "Authorization": f"Zoho-oauthtoken {ZOHO_ACCESS_TOKEN}",
+        "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json"
     }
 
-    # 🔍 1. Buscar tag existente
-    resp = requests.get(url, headers=headers).json()
-    for tag in resp.get("data", []):
-        if tag["name"] == name:
-            return tag["id"], {"status": "exists", "id": tag["id"], "name": name}
+    base_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/tags"
 
-    # ➕ 2. Crear tag si no existe
-    payload = {
-        "name": name,
-        "color": color,
-        "module": module
-    }
-    resp = requests.post(url, headers=headers, json=payload).json()
+    # 1️⃣ Buscar si ya existe
+    list_resp = requests.get(base_url, headers=headers)
+    try:
+        tags = list_resp.json().get("data", [])
+    except:
+        tags = []
 
-    if "data" in resp and len(resp["data"]) > 0:
-        new_tag = resp["data"][0]
-        return new_tag["id"], {"status": "created", "id": new_tag["id"], "name": new_tag["name"]}
-    else:
-        return None, {"status": "error", "resp": resp}
+    for t in tags:
+        if t.get("name") == tag_name:
+            return t.get("id"), {"status": "exists", "tag": t}
+
+    # 2️⃣ Si no existe, crearlo
+    payload = {"name": tag_name, "color": color, "module": module}
+    create_resp = requests.post(base_url, headers=headers, json=payload)
+
+    try:
+        create_data = create_resp.json()
+    except:
+        create_data = {"error": "Respuesta no válida", "raw": create_resp.text}
+
+    if create_resp.status_code in [200, 201]:
+        new_tag = create_data.get("data", [])[0]
+        return new_tag.get("id"), create_data
+
+    return None, create_data
+
 
 
 
