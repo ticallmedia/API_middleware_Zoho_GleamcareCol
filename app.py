@@ -82,9 +82,7 @@ def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
         "Content-Type": "application/json"
     }
 
-    # si no viene visitor_id, usamos telefono como fallback
     visitor_id = str(visitor_id or telefono)
-
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
 
     payload = {
@@ -94,17 +92,22 @@ def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
         "custom_fields": {"canal": "whatsapp"}
     }
 
-    # 👇 asignar tag si existe
+    # 👇 agregar el tag si viene
     if tag_id:
         payload["tag_ids"] = [tag_id]
+        logging.info(f"📌 Asignando tag_id: {tag_id} al visitor {visitor_id}")
 
+    logging.info(f"➡️ Enviando visitante a Zoho: {payload}")
     response = requests.post(url, headers=headers, json=payload)
+    logging.info(f"⬅️ Respuesta Zoho visitante: {response.status_code} {response.text}")
 
     # enviar mensaje inicial si existe
     if mensaje:
         msg_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}/message"
         msg_payload = {"content": mensaje, "type": "text"}
-        requests.post(msg_url, headers=headers, json=msg_payload)
+        logging.info(f"➡️ Enviando mensaje inicial: {msg_payload}")
+        msg_resp = requests.post(msg_url, headers=headers, json=msg_payload)
+        logging.info(f"⬅️ Respuesta Zoho mensaje: {msg_resp.status_code} {msg_resp.text}")
 
     try:
         data = response.json()
@@ -113,10 +116,11 @@ def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
 
     if response.status_code in [200, 201]:
         logging.info("✅ Lead enviado correctamente")
-        return data   # ✅ ahora devolvemos la respuesta JSON completa
+        return "✅ Lead enviado correctamente"
     else:
-        logging.info(f"❌ Error al enviar Lead: {data}")
+        logging.error(f"❌ Error al enviar Lead: {data}")
         return f"❌ Error al enviar Lead: {data}", 500
+
 
 
 
@@ -128,19 +132,25 @@ def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
 @app.route('/api/from-waba', methods=['POST'])
 def from_waba():
     data = request.json
+    logging.info(f"📥 Payload recibido en /from-waba: {data}")
+
     user_msg = data.get("message")
     user_id = data.get("user_id")
     tag_name = data.get("tag")   # 👈 nombre del tag
 
     visitor_id = f"whatsapp_{user_id}"
+    logging.info(f"🆔 Visitor ID generado: {visitor_id}")
 
     # 1️⃣ resolver el tag_id si se mandó un tag
     tag_id = None
     tag_result = None
     if tag_name:
+        logging.info(f"🔍 Buscando/creando tag '{tag_name}' en Zoho...")
         tag_id, tag_result = get_or_create_tag(tag_name)
+        logging.info(f"📌 Resultado tag: {tag_result}")
 
     # 2️⃣ enviar visitante/mensaje a Zoho con tag opcional
+    logging.info(f"🚀 Enviando visitante a Zoho SalesIQ: {visitor_id}, msg='{user_msg}', tag_id={tag_id}")
     response = enviar_a_salesiq(
         visitor_id,
         nombre=f"WhatsApp {user_id}",
@@ -148,6 +158,7 @@ def from_waba():
         mensaje=user_msg,
         tag_id=tag_id
     )
+    logging.info(f"📤 Respuesta Zoho SalesIQ: {response}")
 
     return jsonify({
         "status": "sent_to_zoho",
@@ -162,8 +173,11 @@ def get_or_create_tag(tag_name, color="#FF5733", module="visitors"):
     Si no existe, lo crea.
     Retorna (tag_id, respuesta_completa).
     """
+    logging.info(f"🔎 get_or_create_tag(): buscando tag '{tag_name}'")
+
     access_token = get_access_token()
     if not access_token:
+        logging.error("❌ No se pudo obtener access_token")
         return None, {"error": "❌ No access_token"}
 
     headers = {
@@ -175,28 +189,35 @@ def get_or_create_tag(tag_name, color="#FF5733", module="visitors"):
 
     # 1️⃣ Buscar si ya existe
     list_resp = requests.get(base_url, headers=headers)
+    logging.info(f"📡 GET tags -> status {list_resp.status_code}")
     try:
         tags = list_resp.json().get("data", [])
-    except:
+    except Exception as e:
+        logging.error(f"⚠️ Error parseando tags: {e}, raw={list_resp.text}")
         tags = []
 
     for t in tags:
         if t.get("name") == tag_name:
+            logging.info(f"✅ Tag encontrado: {t}")
             return t.get("id"), {"status": "exists", "tag": t}
 
     # 2️⃣ Si no existe, crearlo
     payload = {"name": tag_name, "color": color, "module": module}
+    logging.info(f"🆕 Creando nuevo tag: {payload}")
     create_resp = requests.post(base_url, headers=headers, json=payload)
 
     try:
         create_data = create_resp.json()
-    except:
+    except Exception as e:
+        logging.error(f"⚠️ Error parseando create_tag: {e}, raw={create_resp.text}")
         create_data = {"error": "Respuesta no válida", "raw": create_resp.text}
 
     if create_resp.status_code in [200, 201]:
         new_tag = create_data.get("data", [])[0]
+        logging.info(f"✅ Tag creado exitosamente: {new_tag}")
         return new_tag.get("id"), create_data
 
+    logging.error(f"❌ Error al crear tag: {create_data}")
     return None, create_data
 
 
