@@ -124,11 +124,22 @@ def from_waba():
     data = request.json
     user_msg = data.get("message")
     user_id = data.get("user_id")
+    tag = data.get("tag")
 
     visitor_id = f"whatsapp_{user_id}"
+
     response = enviar_a_salesiq(visitor_id, nombre=f"WhatsApp {user_id}", telefono=user_id, mensaje=user_msg)
 
-    return jsonify({"status": "sent_to_zoho", "zoho_response": response})
+    # 2️⃣ Si viene un tag, crearlo/asignarlo en Zoho
+    tag_result = None
+    if tag:
+        tag_result = create_tag(
+            name=tag,
+            color="#FF5733",
+            module="conversations"
+        )
+
+    return jsonify({"status": "sent_to_zoho", "zoho_response": response,"tag_response": tag_result})
 
 @app.route("/webhook", methods=["GET"])
 def webhook_verify():
