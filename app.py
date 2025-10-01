@@ -43,6 +43,7 @@ VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 
 APP_A_URL = os.getenv("APP_A_URL")
 #APP_A_URL = os.getenv("APP_A_URL", "https://beta-ticallmedia-w.onrender.com")
+ZOHO_ACCESS_TOKEN = os.getenv("ZOHO_ACCESS_TOKEN")
 #________________________________________________________________________________________
 
 #Obtiene un nuevo access_token usando el refresh_token
@@ -140,6 +141,29 @@ def from_waba():
         )
 
     return jsonify({"status": "sent_to_zoho", "zoho_response": response,"tag_response": tag_result})
+
+
+
+def create_tag(name, color="#FF5733", module="conversations"):
+    url = "https://salesiq.zoho.com/api/v2/ticallmedia/tags"
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {ZOHO_ACCESS_TOKEN}",  # 👈 asegúrate de tenerlo vigente
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "name": name,
+        "color": color,
+        "module": module
+    }
+
+    resp = requests.post(url, headers=headers, json=payload, timeout=5)
+    try:
+        return resp.json()
+    except Exception:
+        return {"error": "No se pudo parsear respuesta", "raw": resp.text}
+
+
+
 
 @app.route("/webhook", methods=["GET"])
 def webhook_verify():
