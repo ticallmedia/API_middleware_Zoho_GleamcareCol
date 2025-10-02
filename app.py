@@ -75,6 +75,7 @@ def get_access_token():
 def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
     access_token = get_access_token()
     if not access_token:
+        logging.error("❌ No se pudo obtener access_token en enviar_a_salesiq()")
         return "❌ Error al obtener access_token"
 
     headers = {
@@ -83,6 +84,7 @@ def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
     }
 
     visitor_id = str(visitor_id or telefono)
+
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
 
     payload = {
@@ -94,7 +96,7 @@ def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
 
     # 👇 agregar el tag si viene
     if tag_id:
-        payload["tag_ids"] = [tag_id]
+        payload["ids"] = [tag_id]
         logging.info(f"📌 Asignando tag_id: {tag_id} al visitor {visitor_id}")
 
     logging.info(f"➡️ Enviando visitante a Zoho: {payload}")
@@ -111,7 +113,8 @@ def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
 
     try:
         data = response.json()
-    except:
+    except Exception as e:
+        logging.error(f"⚠️ Error parseando respuesta: {e}, raw={response.text}")
         data = {"error": "Respuesta no válida de Zoho", "raw": response.text}
 
     if response.status_code in [200, 201]:
