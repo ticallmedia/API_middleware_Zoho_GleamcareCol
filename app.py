@@ -283,6 +283,63 @@ def from_waba():
         "conversation_resp": conv_resp
     })
 
+
+
+def enviar_a_salesiq(visitor_id, nombre, telefono, mensaje=None, tag_id=None):
+    access_token = get_access_token()
+    if not access_token:
+        logging.error("❌ No se pudo obtener access_token en enviar_a_salesiq()")
+        return "❌ Error al obtener access_token"
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    visitor_id = str(visitor_id or telefono)
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
+
+    # 1️⃣ Crear o actualizar visitante
+    payload = {
+        "id": visitor_id,
+        "name": nombre or visitor_id,
+        "contactnumber": telefono,
+        "custom_fields": {"canal": "whatsapp"}
+    }
+
+    logging.info(f"➡️ Enviando visitante a Zoho: {payload}")
+    visitor_resp = requests.post(url, headers=headers, json=payload)
+    logging.info(f"/api/from-waba visitor_resp: status={visitor_resp.status_code} body={visitor_resp.text}")
+
+    # 2️⃣ Abrir conversación enviando mensaje inicial
+    if mensaje:
+        msg_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}/message"
+        msg_payload = {"content": mensaje, "type": "text"}
+
+        # opcional: asignar a app o departamento
+        if SALESIQ_APP_ID:
+            msg_payload["app_id"] = SALESIQ_APP_ID
+        if SALESIQ_DEPARTMENT_ID:
+            msg_payload["department_id"] = SALESIQ_DEPARTMENT_ID
+
+        logging.info(f"➡️ Enviando mensaje inicial: {msg_payload}")
+        msg_resp = requests.post(msg_url, headers=headers, json=msg_payload)
+        logging.info(f"⬅️ Respuesta Zoho mensaje: {msg_resp.status_code} {msg_resp.text}")
+
+        # Si quieres etiquetar la conversación
+        if tag_id and msg_resp.status_code in [200, 201]:
+            try:
+                conv_id = msg_resp.json()["data"][0]["id"]
+                tag_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conv_id}/tags"
+                tag_payload = {"ids": [tag_id]}
+                logging.info(f"➡️ Etiquetando conversación {conv_id} con {tag_id}")
+                tag_resp = requests.put(tag_url, headers=headers, json=tag_payload)
+                logging.info(f"⬅️ Respuesta Zoho tags: {tag_resp.status_code} {tag_resp.text}")
+            except Exception as e:
+                logging.error(f"⚠️ No se pudo asignar tag a la conversación: {e}")
+
+    return "✅ Visitante y conversación enviados a Zoho"
+
 # -----------------------
 # Endpoint: Zoho -> App B (webhook)
 # -----------------------
