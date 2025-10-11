@@ -415,9 +415,9 @@ def oauth_callback():
         logging.info(f"oauth2callback: token exchange -> {data}")
 
         # mostrar refresh_token para que lo copiar a Render ENV (seguridad: solo use una vez)
-        #refresh_token = data.get("refresh_token")
-        #access_token = data.get("access_token")
-        #return jsonify({"token_response": data, "note": "Copia refresh_token a Render env var ZOHO_REFRESH_TOKEN. No lo publiques."})
+        refresh_token = data.get("refresh_token")
+        access_token = data.get("access_token")
+        return jsonify({"token_response": data, "note": "Copia refresh_token a Render env var ZOHO_REFRESH_TOKEN"})
     except Exception as e:
         logging.error(f"oauth2callback: exception -> {e}")
         return jsonify({"error": str(e)}), 500
