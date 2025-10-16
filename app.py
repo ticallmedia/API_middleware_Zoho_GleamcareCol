@@ -64,7 +64,7 @@ with app.app_context():
 #Funciones bd
 
 def get_visitor_id(telefono_usuario_id):
-    registro = visitantes_zoho.query.filter_by(telefono_usuario_id=telefono_usuario_id).first
+    registro = visitantes_zoho.query.filter_by(telefono_usuario_id=telefono_usuario_id).first()
     return registro.visitor_id if registro else None
 
 
@@ -466,7 +466,7 @@ def from_waba():
     except Exception as e:
         logging.error(f"Error guardando log: {e}")
     """
-    
+
     """"
     return jsonify({
         "status": "ok",
