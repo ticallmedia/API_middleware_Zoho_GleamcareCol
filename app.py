@@ -406,8 +406,13 @@ def from_waba():
         return jsonify({"error": "missing user_id"}), 400
 
     #Busca si exite el id en la bd de visitor
-    visitor_id = db.get_visitor_id(user_id)
 
+    #visitor_id = db.get_visitor_id(user_id) #11111111111111
+    visitor_id = f"whatsapp_{user_id}"
+    
+
+
+    """
     #Si no exite crea el visitante
     if not visitor_id:
         visitor_id = f"whatsapp_{user_id}"
@@ -419,6 +424,12 @@ def from_waba():
         if status == 200 and "visitor_unique_id" in visitor_resp:
             visitor_id = visitor_resp["visitor_unique_id"]
             db.save_visitor_id(user_id, visitor_id)
+
+    """
+    # 1) crear/actualizar visitor
+    visitor_resp, status = create_or_update_visitor(visitor_id, nombre=f"WhatsApp {user_id}", telefono=user_id)
+    logging.info(f"/api/from-waba visitor_resp: status={status} body={visitor_resp}")
+
 
     # 2) si hay tag_name -> resolver id y asociar
     associate_result = None
@@ -467,7 +478,6 @@ def from_waba():
         logging.error(f"Error guardando log: {e}")
     """
 
-    """"
     return jsonify({
         "status": "ok",
         "visitor_resp": visitor_resp,
@@ -476,8 +486,8 @@ def from_waba():
         "associate_result": associate_result,
         "conversation_resp": conv_resp
     })
+    
     """
-
     return jsonify({
         "status": "ok",
         "visitor_id": visitor_id,
@@ -486,6 +496,7 @@ def from_waba():
         "conversation_resp": conv_resp,
         "message_resp": message_resp
     })
+    """
 #________________________________________________________________________________________
 
 
