@@ -64,22 +64,31 @@ with app.app_context():
 #Funciones bd
 
 def get_visitor_id(telefono_usuario_id):
-    registro = visitor.query.filter_by(telefono_usuario_id=telefono_usuario_id).first
+    registro = visitantes_zoho.query.filter_by(telefono_usuario_id=telefono_usuario_id).first
     return registro.visitor_id if registro else None
 
 
-def agregar_datos_visitantes_zoho(datos_json):
-    #agregar registro a la bd
-    datos = json.loads(datos_json)
-    nuevo_registro = visitantes_zoho(
-        visitor_id = datos.get('visitor_id'),
-        telefono_usuario_id = datos.get('telefono'),
-        session_id = datos.get('session_id'),
-        fecha_creacion = datos.get('fecha_creacion'),
-        fecha_ultimo_mensaje = datos.get('fecha_ultimo_mensaje'),
-        status = datos.get('status')
+# Guardar un nuevo visitor_id o actualizar si ya existe
+def save_visitor_id(telefono_usuario_id, visitor_id):
+    registro = visitantes_zoho.query.filter_by(telefono_usuario_id=telefono_usuario_id).first()
+
+    if registro:
+        # Si ya existe, actualizamos solo el visitor_id
+        registro.visitor_id = visitor_id
+        registro.fecha_ultimo_mensaje = datetime.utcnow()
+        registro.status = "activo"
+    else:
+        # Si no existe, creamos un nuevo registro
+        registro = visitantes_zoho(
+            visitor_id=visitor_id,
+            telefono_usuario_id=telefono_usuario_id,
+            session_id=f"session_{telefono_usuario_id}_{int(datetime.utcnow().timestamp())}",
+            fecha_creacion=datetime.utcnow(),
+            fecha_ultimo_mensaje=datetime.utcnow(),
+            status="activo"
         )
-    db.session.add(nuevo_registro)
+        db.session.add(registro)
+
     db.session.commit()
 
 
@@ -433,6 +442,8 @@ def from_waba():
     access_token = get_access_token()
     message_resp = send_message_to_salesiq(visitor_id, user_msg, access_token)
 
+
+    """"
     # 6️ Guardar o actualizar registro en la tabla Log
     try:
         registro = visitantes_zoho.query.filter_by(telefono_usuario_id=user_id, status="activo").first()
@@ -454,7 +465,8 @@ def from_waba():
         db.session.commit()
     except Exception as e:
         logging.error(f"Error guardando log: {e}")
-
+    """
+    
     """"
     return jsonify({
         "status": "ok",
