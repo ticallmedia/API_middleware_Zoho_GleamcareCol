@@ -63,6 +63,10 @@ with app.app_context():
 #________________________________________________________________________________________
 #Funciones bd
 
+def get_visitor_id(telefono_usuario_id):
+    registro = visitor.query.filter_by(telefono_usuario_id=telefono_usuario_id).first
+    return registro.visitor_id if registro else None
+
 
 def agregar_datos_visitantes_zoho(datos_json):
     #agregar registro a la bd
