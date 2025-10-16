@@ -27,6 +27,7 @@ Versión: 1.1
 - Se agrega creacion de tabla de visitantes zoho, para capturar el visitor_id y evitar crea
 un chat por cada mensaje del usuario
 
+
 """
 #________________________________________________________________________________________
 # app.py — Integración WABA ↔ Zoho SalesIQ (App B, middleware)
