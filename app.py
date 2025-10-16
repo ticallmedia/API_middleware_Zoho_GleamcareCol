@@ -189,6 +189,29 @@ def get_access_token():
 #________________________________________________________________________________________
 
 # -----------------------
+# 
+# -----------------------
+
+def send_message_to_salesiq(phone, message,access_token):
+    visitor_id = db.get_visitor_id(phone)
+
+    if not visitor_id:
+        res = requests.post(
+            "https://salesiq.zoho.com/api/v2/your_portal_id/visitors",
+            headers={"Authorization": f"Zoho-oauthtoken {access_token}"},
+            json={"name": phone, "question": message}
+        )
+        data = res.json()
+        visitor_id = data["visitor_unique_id"]
+        db.save_visitor_id(phone, visitor_id)
+
+    requests.post(
+        f"https://salesiq.zoho.com/api/v2/your_portal_id/visitors/{visitor_id}/message",
+        headers={"Authorization": f"Zoho-oauthtoken {access_token}"},
+        json={"message": message}
+    )
+
+# -----------------------
 # Crear/Actualizar visitor, es decir el id del usuario
 # -----------------------
 def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None):
@@ -402,6 +425,9 @@ def from_waba():
     if user_msg:
         conv_resp = create_conversation_if_configured(visitor_id, nombre=f"WhatsApp {user_id}", telefono=user_id, question=user_msg)
 
+    # 5️ Enviar mensaje al visitante (si aplica)
+    access_token = get_access_token()
+    message_resp = send_message_to_salesiq(visitor_id, user_msg, access_token)
 
     # 6️ Guardar o actualizar registro en la tabla Log
     try:
@@ -425,7 +451,7 @@ def from_waba():
     except Exception as e:
         logging.error(f"Error guardando log: {e}")
 
-
+    """"
     return jsonify({
         "status": "ok",
         "visitor_resp": visitor_resp,
@@ -433,6 +459,16 @@ def from_waba():
         "tag_result": tag_result,
         "associate_result": associate_result,
         "conversation_resp": conv_resp
+    })
+    """
+
+    return jsonify({
+        "status": "ok",
+        "visitor_id": visitor_id,
+        "tag_result": tag_result,
+        "associate_result": associate_result,
+        "conversation_resp": conv_resp,
+        "message_resp": message_resp
     })
 #________________________________________________________________________________________
 
