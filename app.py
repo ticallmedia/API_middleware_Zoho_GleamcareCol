@@ -232,125 +232,78 @@ def get_access_token():
 # -----------------------
 #
 # -----------------------
-def get_active_conversation_by_visitor(visitor_user_id, app_id=None, limit=50):
-    """
-    Lista conversaciones (limit) y busca la primera con visitor.user_id == visitor_user_id
-    y estado 'waiting' o 'open'. Retorna chat_id o None.
-    """
+def get_active_conversation_by_visitor(visitor_id):
+    """Corrige error code 1011 (limit ausente)"""
     access_token = get_access_token()
     if not access_token:
-        logging.error("get_active_conversation_by_visitor: no access token")
-        return None
+        return {"error": "no_access_token"}, 401
 
-    headers = {
-        "Authorization": f"Zoho-oauthtoken {access_token}",
-        "Content-Type": "application/json"
-    }
-
-    params = {"limit": limit}
-    if app_id:
-        params["app_id"] = app_id
-
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}/conversations"
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+    params = {"limit": 10}  # obligatorio
 
     try:
-        r = requests.get(url, headers=headers, params=params, timeout=10)
+        r = requests.get(url, headers=headers, params=params)
         logging.info(f"get_active_conversation_by_visitor: {r.status_code} {r.text}")
-
-        if r.status_code != 200:
-            return None
-
-        data = r.json().get("data", [])
-        # buscamos la conversación del visitor indicada
-        for conv in data:
-            visitor = conv.get("visitor", {}) or {}
-            if visitor.get("user_id") == visitor_user_id:
-                state = conv.get("chat_status", {}).get("state_key", "")
-                if state in ("waiting", "open"):
-                    return conv.get("chat_id"), conv.get("id")  # chat_id y conversation internal id
-        return None
+        return r.json(), r.status_code
     except Exception as e:
-        logging.error(f"get_active_conversation_by_visitor exception: {e}")
-        return None
+        logging.error(f"get_active_conversation_by_visitor: Exception {e}")
+        return {"error": str(e)}, 500
 
 # -----------------------
 #
 # -----------------------
-def create_conversation(visitor_user_id, nombre, telefono, question):
+def create_conversation(visitor_id, tag_ids=None, department_id=None):
+    """Corrige error code 1011 json_key:tag_ids"""
     access_token = get_access_token()
     if not access_token:
-        logging.error("create_conversation: no access token")
-        return None, None
-
-    headers = {
-        "Authorization": f"Zoho-oauthtoken {access_token}",
-        "Content-Type": "application/json"
-    }
+        return {"error": "no_access_token"}, 401
 
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
-    payload = {
-        "visitor": {
-            "user_id": visitor_user_id,
-            "name": nombre,
-            "phone": telefono
-        },
-        "app_id": SALESIQ_APP_ID,
-        "department_id": SALESIQ_DEPARTMENT_ID,
-        "question": question
-    }
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+
+    payload = {"visitor_id": visitor_id}
+    if department_id:
+        payload["department_id"] = department_id
+    if tag_ids:
+        payload["tag_ids"] = tag_ids  # debe ser lista válida
+
+    logging.info(f"create_conversation: POST {url} payload={payload}")
 
     try:
-        r = requests.post(url, headers=headers, json=payload, timeout=10)
+        r = requests.post(url, headers=headers, json=payload)
         logging.info(f"create_conversation: {r.status_code} {r.text}")
-        if r.status_code in (200, 201):
-            data = r.json().get("data")
-            # data puede ser dict o lista según la respuesta; normalizamos
-            if isinstance(data, list) and len(data) > 0:
-                d = data[0]
-            elif isinstance(data, dict):
-                d = data
-            else:
-                d = {}
-            # chat_id (chat unique) y id (conversation internal id)
-            return d.get("chat_id"), d.get("id")
-        else:
-            logging.error(f"create_conversation failed: {r.status_code} {r.text}")
-            return None, None
+        return r.json(), r.status_code
     except Exception as e:
-        logging.error(f"create_conversation exception: {e}")
-        return None, None
+        logging.error(f"create_conversation: Exception {e}")
+        return {"error": str(e)}, 500
 
 
 # -----------------------
 # Crear/Actualizar visitor, es decir el id del usuario
 # -----------------------
 def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None, tag_ids=None):
-    """Crea o actualiza visitante y devuelve respuesta de Zoho."""
     access_token = get_access_token()
     if not access_token:
-        logging.error("create_or_update_visitor: no access token available")
+        logging.error("create_or_update_visitor: No access token")
         return {"error": "no_access_token"}, 401
 
-    headers = {
-        "Authorization": f"Zoho-oauthtoken {access_token}",
-        "Content-Type": "application/json"
-    }
-
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
 
     payload = {
         "id": str(visitor_id),
         "name": nombre,
         "contactnumber": telefono,
-        "custom_fields": custom_fields or {"canal": "whatsapp"},
-        "tag_ids": "" #[] #se incluye porque es obligatorio asi este vacio
+        "custom_fields": custom_fields or {}
     }
 
-    logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
-
-    # Incluir tags si existen
+    # Solo agregar tag_ids si existen y son válidos
     if tag_ids:
-        payload["tag_ids"] = tag_ids
+        if isinstance(tag_ids, list):
+            payload["tag_ids"] = tag_ids
+        else:
+            logging.warning(f"tag_ids no es lista válida: {tag_ids}")
 
     logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
 
@@ -360,12 +313,10 @@ def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None, t
 
         try:
             return r.json(), r.status_code
-        except Exception as e:
-            logging.error(f"create_or_update_visitor: invalid response: {e}")
-            return {"error":"invalid_response","details": str(e)},r.status_code
-
+        except Exception:
+            return {"error": "invalid_response", "raw": r.text}, r.status_code
     except Exception as e:
-        logging.error(f"create_or_update_visitor: exception -> {e}")
+        logging.error(f"create_or_update_visitor: Exception {e}")
         return {"error": str(e)}, 500
 
 #________________________________________________________________________________________
