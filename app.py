@@ -338,18 +338,18 @@ def associate_tags_to_module(module_name, module_record_id, tag_ids):
 # Crear conversación (opcional) — usa visitor/v2 endpoint y requiere APP_ID + DEPARTMENT_ID
 #corresponde al Departamente que se configura en ZOHO para recibir los mensajes
 # -----------------------
-def create_conversation_if_configured(visitor_id, message_text):
+def create_conversation_if_configured(visitor_user_id, nombre, telefono, question):
     """
     Crea una conversación solo si el visitante no tiene una activa.
     Si ya hay una conversación abierta, retorna su ID.
     """
-    # 1️⃣ Revisar si ya hay una conversación activa
-    chat_id = get_active_conversation(visitor_id)
+    # 1️ Revisar si ya hay una conversación activa
+    chat_id = get_active_conversation(visitor_user_id)
     if chat_id:
-        logging.info(f"Existing chat found for {visitor_id}: {chat_id}")
+        logging.info(f"Existing chat found for {visitor_user_id}: {chat_id}")
         return {"chat_id": chat_id, "status": "existing"}, 200
 
-    # 2️⃣ Si no existe, crear una nueva conversación
+    # 2️ Si no existe, crear una nueva conversación
     access_token = get_access_token()
     headers = {
         "Authorization": f"Zoho-oauthtoken {access_token}",
@@ -358,11 +358,12 @@ def create_conversation_if_configured(visitor_id, message_text):
 
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
     payload = {
-        "visitor": {"id": visitor_id},
-        "question": message_text,
-        "department": {"id": SALESIQ_DEPARTMENT_ID},  # tu ID de "Visitantes"
-        "auto_assign": True
+        "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
+        "app_id": SALESIQ_APP_ID,
+        "department_id": SALESIQ_DEPARTMENT_ID,
+        "question": question
     }
+
 
     try:
         r = requests.post(url, headers=headers, json=payload)
