@@ -251,7 +251,7 @@ def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None, t
         "name": nombre,
         "contactnumber": telefono,
         "custom_fields": custom_fields or {"canal": "whatsapp"},
-        "tag_ids": [] #se incluye porque es obligatorio asi este vacio
+        "tag_ids": "" #[] #se incluye porque es obligatorio asi este vacio
     }
 
     logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
@@ -356,12 +356,17 @@ def create_conversation_if_configured(visitor_user_id, nombre, telefono, questio
         "Content-Type": "application/json"
     }
 
-    url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
+    url = f"https://salesiq.zoho.com/api/v2/{ZOHO_PORTAL_NAME}/conversations"
     payload = {
-        "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
+        "visitor": {
+            "user_id": visitor_user_id,
+            "name": nombre,
+            "phone": telefono
+        },
         "app_id": SALESIQ_APP_ID,
         "department_id": SALESIQ_DEPARTMENT_ID,
-        "question": question
+        "question": question,
+        "auto_assign": True
     }
 
 
@@ -379,7 +384,6 @@ def create_conversation_if_configured(visitor_user_id, nombre, telefono, questio
         logging.error(f"create_conversation_if_configured exception: {e}")
         return {"error": str(e)}, 500
 #________________________________________________________________________________________
-import requests, logging
 
 def get_active_conversation(visitor_id):
     """
@@ -391,8 +395,12 @@ def get_active_conversation(visitor_id):
         logging.error("get_active_conversation: no access token available")
         return None
 
-    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}/chats"
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    url = f"https://salesiq.zoho.com/api/v2/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}/conversations"
 
     try:
         r = requests.get(url, headers=headers)
