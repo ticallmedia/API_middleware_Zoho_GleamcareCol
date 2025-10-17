@@ -356,7 +356,7 @@ def create_conversation_if_configured(visitor_user_id, nombre, telefono, questio
         "Content-Type": "application/json"
     }
 
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
     payload = {
         "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
         "app_id": SALESIQ_APP_ID,
