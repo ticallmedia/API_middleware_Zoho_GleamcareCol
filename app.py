@@ -236,20 +236,25 @@ def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None, t
     """Crea o actualiza visitante y devuelve respuesta de Zoho."""
     access_token = get_access_token()
     if not access_token:
+        logging.error("create_or_update_visitor: no access token available")
         return {"error": "no_access_token"}, 401
 
     headers = {
         "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json"
     }
+
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
 
     payload = {
         "id": str(visitor_id),
         "name": nombre,
         "contactnumber": telefono,
-        "custom_fields": custom_fields or {"canal": "whatsapp"}
+        "custom_fields": custom_fields or {"canal": "whatsapp"},
+        "tag_ids": [] #se incluye porque es obligatorio asi este vacio
     }
+
+    logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
 
     # Incluir tags si existen
     if tag_ids:
@@ -260,7 +265,13 @@ def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None, t
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=10)
         logging.info(f"create_or_update_visitor: status {r.status_code} resp={r.text}")
-        return r.json(), r.status_code
+
+        try:
+            return r.json(), r.status_code
+        except Exception as e:
+            logging.error(f"create_or_update_visitor: invalid response: {e}")
+            return {"error":"invalid_response","details": str(e)},r.status_code
+
     except Exception as e:
         logging.error(f"create_or_update_visitor: exception -> {e}")
         return {"error": str(e)}, 500
@@ -327,32 +338,79 @@ def associate_tags_to_module(module_name, module_record_id, tag_ids):
 # Crear conversación (opcional) — usa visitor/v2 endpoint y requiere APP_ID + DEPARTMENT_ID
 #corresponde al Departamente que se configura en ZOHO para recibir los mensajes
 # -----------------------
-def create_conversation_if_configured(visitor_user_id, nombre, telefono, question):
-    """Crea conversación en SalesIQ solo si están configuradas APP_ID y DEPARTMENT_ID."""
-    if not (SALESIQ_APP_ID and SALESIQ_DEPARTMENT_ID):
-        return None
+def create_conversation_if_configured(visitor_id, message_text):
+    """
+    Crea una conversación solo si el visitante no tiene una activa.
+    Si ya hay una conversación abierta, retorna su ID.
+    """
+    # 1️⃣ Revisar si ya hay una conversación activa
+    chat_id = get_active_conversation(visitor_id)
+    if chat_id:
+        logging.info(f"Existing chat found for {visitor_id}: {chat_id}")
+        return {"chat_id": chat_id, "status": "existing"}, 200
 
-    url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
-    payload = {
-        "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
-        "app_id": SALESIQ_APP_ID,
-        "department_id": SALESIQ_DEPARTMENT_ID,
-        "question": question
+    # 2️⃣ Si no existe, crear una nueva conversación
+    access_token = get_access_token()
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
     }
 
-    access_token = get_access_token()
-    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    payload = {
+        "visitor": {"id": visitor_id},
+        "question": message_text,
+        "department": {"id": SALESIQ_DEPARTMENT_ID},  # tu ID de "Visitantes"
+        "auto_assign": True
+    }
 
     try:
-        r = requests.post(url, headers=headers, json=payload, timeout=10)
+        r = requests.post(url, headers=headers, json=payload)
         logging.info(f"create_conversation_if_configured: {r.status_code} {r.text}")
-        return r.json()
+
+        if r.status_code == 200:
+            data = r.json().get("data", {})
+            return {"chat_id": data.get("chat_id"), "status": "created"}, 200
+        else:
+            return {"error": r.text}, r.status_code
+
     except Exception as e:
-        logging.error(f"create_conversation_if_configured: exception -> {e}")
-        return {"error": str(e)}
+        logging.error(f"create_conversation_if_configured exception: {e}")
+        return {"error": str(e)}, 500
 #________________________________________________________________________________________
+import requests, logging
 
+def get_active_conversation(visitor_id):
+    """
+    Verifica si el visitante ya tiene una conversación activa en Zoho SalesIQ.
+    Retorna el chat_id si existe, o None si no hay conversación activa.
+    """
+    access_token = get_access_token()
+    if not access_token:
+        logging.error("get_active_conversation: no access token available")
+        return None
 
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}/chats"
+
+    try:
+        r = requests.get(url, headers=headers)
+        if r.status_code != 200:
+            logging.warning(f"get_active_conversation: {r.status_code} {r.text}")
+            return None
+
+        data = r.json()
+        chats = data.get("data", [])
+        for chat in chats:
+            state = chat.get("chat_status", {}).get("state_key", "")
+            if state in ["waiting", "open"]:  # conversación activa
+                return chat.get("chat_id")
+
+        return None
+
+    except Exception as e:
+        logging.error(f"get_active_conversation exception: {e}")
+        return None
 
 
 #________________________________________________________________________________________
@@ -382,7 +440,7 @@ def from_waba():
     nombre = f"WhatsApp {user_id}"
     telefono = user_id
 
-    # 1️⃣ Crear o actualizar visitante
+    # 1️ Crear o actualizar visitante
     visitor_resp, status = create_or_update_visitor(visitor_id, nombre, telefono)
     logging.info(f"/api/from-waba — visitor_resp: {visitor_resp}")
 
@@ -395,7 +453,7 @@ def from_waba():
             else visitor_resp.get("data", {}).get("id")
         ) or visitor_id
 
-    # 2️⃣ Si hay tag -> crearla o buscarla y asociar
+    # 2️ Si hay tag -> crearla o buscarla y asociar
     tag_result = associate_result = None
     if tag_name:
         tag_id, tag_result = get_or_create_tag(tag_name, color=tag_color, module="visitors")
@@ -403,7 +461,7 @@ def from_waba():
             associate_result = associate_tags_to_module("visitors", zoho_visitor_id, [tag_id])
             logging.info(f"/api/from-waba — tag asociado {tag_id} a {zoho_visitor_id}")
 
-    # 3️⃣ Crear conversación (si hay mensaje)
+    # 3️ Crear conversación (si hay mensaje)
     conv_resp = None
     if user_msg:
         conv_resp = create_conversation_if_configured(zoho_visitor_id, nombre, telefono, user_msg)
