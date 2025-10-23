@@ -232,47 +232,36 @@ def get_access_token():
 # -----------------------
 # Crear/Actualizar visitor, es decir el id del usuario
 # -----------------------
-def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None, tag_ids=None):
-    """Crea o actualiza visitante y devuelve respuesta de Zoho."""
+
+
+def create_or_update_visitor(visitor_id, name, phone, tag_ids=None):
     access_token = get_access_token()
     if not access_token:
-        logging.error("create_or_update_visitor: no access token available")
         return {"error": "no_access_token"}, 401
 
-    headers = {
-        "Authorization": f"Zoho-oauthtoken {access_token}",
-        "Content-Type": "application/json"
-    }
-
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
 
     payload = {
-        "id": str(visitor_id),
-        "name": nombre,
-        "contactnumber": telefono,
-        "custom_fields": custom_fields or {"canal": "whatsapp"},
-        "tag_ids": "" #[] #se incluye porque es obligatorio asi este vacio
+        "id": visitor_id,
+        "name": name,
+        "contactnumber": phone,
+        "custom_fields": {"canal": "whatsapp"}
     }
 
-    # Incluir tags si existen
     if tag_ids:
         payload["tag_ids"] = tag_ids
 
     logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
 
     try:
-        r = requests.post(url, headers=headers, json=payload, timeout=10)
+        r = requests.post(url, headers=headers, json=payload)
         logging.info(f"create_or_update_visitor: status {r.status_code} resp={r.text}")
-
-        try:
-            return r.json(), r.status_code
-        except Exception as e:
-            logging.error(f"create_or_update_visitor: invalid response: {e}")
-            return {"error":"invalid_response","details": str(e)},r.status_code
-
+        return r.json(), r.status_code
     except Exception as e:
-        logging.error(f"create_or_update_visitor: exception -> {e}")
+        logging.exception("❌ Error en create_or_update_visitor")
         return {"error": str(e)}, 500
+
 
 #________________________________________________________________________________________
 # -----------------------
@@ -479,65 +468,37 @@ def from_waba():
     nombre = f"WhatsApp {user_id}"
     telefono = user_id
 
-    # -----------------------
-    # 1️ Crear o actualizar visitante
-    # -----------------------
-    try:
-        visitor_resp, status = create_or_update_visitor(visitor_id, nombre, telefono)
-        logging.info(f"/api/from-waba — visitor_resp: {visitor_resp}")
-    except Exception as e:
-        logging.error(f"❌ Error al crear/actualizar visitante: {e}")
-        return jsonify({"error": "Error creando visitante", "detail": str(e)}), 500
+    # 1️⃣ Crear o actualizar visitante sin tag_ids vacíos
+    visitor_resp, status = create_or_update_visitor(visitor_id, nombre, telefono)
+    logging.info(f"/api/from-waba — visitor_resp: {visitor_resp}")
 
-    # Extraer visitor_id real de Zoho (si lo genera)
     zoho_visitor_id = None
     if isinstance(visitor_resp, dict):
-        zoho_visitor_id = (
-            visitor_resp.get("data", [{}])[0].get("id")
-            if isinstance(visitor_resp.get("data"), list)
-            else visitor_resp.get("data", {}).get("id")
-        ) or visitor_id
+        data_obj = visitor_resp.get("data")
+        if isinstance(data_obj, list) and len(data_obj) > 0:
+            zoho_visitor_id = data_obj[0].get("id")
+        elif isinstance(data_obj, dict):
+            zoho_visitor_id = data_obj.get("id")
+    zoho_visitor_id = zoho_visitor_id or visitor_id
 
-    # -----------------------
-    # 2️ Crear/Asociar Tag
-    # -----------------------
+    # 2️⃣ Asociar tag si viene definido
     tag_result = associate_result = None
-    if tag_name:
-        try:
+    try:
+        if tag_name:
             tag_id, tag_result = get_or_create_tag(tag_name, color=tag_color, module="visitors")
-
-            # Validar respuesta de Zoho
-            if isinstance(tag_result, dict) and "error" in tag_result:
-                error_code = tag_result["error"].get("code")
-                if error_code == 1015:
-                    logging.warning(f"⚠️ Error 1015: {tag_result['error'].get('message')}")
-                    return jsonify({
-                        "error": "Error al crear Tag",
-                        "detail": tag_result["error"]
-                    }), 400
-
             if tag_id:
                 associate_result = associate_tags_to_module("visitors", zoho_visitor_id, [tag_id])
                 logging.info(f"/api/from-waba — tag asociado {tag_id} a {zoho_visitor_id}")
+    except Exception as e:
+        logging.exception("❌ Error al manejar tags")
 
-        except Exception as e:
-            logging.error(f"❌ Error al manejar tags: {e}")
-            return jsonify({"error": "Error manejando tags", "detail": str(e)}), 500
-
-    # -----------------------
-    # 3️ Crear conversación
-    # -----------------------
+    # 3️⃣ Unificar conversación (buscar o crear)
     conv_resp = None
-    if user_msg:
-        try:
-            conv_resp = create_conversation_if_configured(zoho_visitor_id, nombre, telefono, user_msg)
-        except Exception as e:
-            logging.error(f"❌ Error al crear conversación: {e}")
-            return jsonify({"error": "Error creando conversación", "detail": str(e)}), 500
+    try:
+        conv_resp = create_conversation_if_configured(zoho_visitor_id, nombre, telefono, user_msg)
+    except Exception as e:
+        logging.exception("❌ Error creando conversación")
 
-    # -----------------------
-    # 4️ Respuesta final
-    # -----------------------
     return jsonify({
         "status": "ok",
         "visitor_resp": visitor_resp,
