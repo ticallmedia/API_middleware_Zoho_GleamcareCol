@@ -325,46 +325,88 @@ def associate_tags_to_module(module_name, module_record_id, tag_ids):
 # Crear conversación (opcional) — usa visitor/v2 endpoint y requiere APP_ID + DEPARTMENT_ID
 #corresponde al Departamente que se configura en ZOHO para recibir los mensajes
 # -----------------------
-
-def create_conversation_if_configured(visitor_user_id, nombre, telefono, question):
-    """Crea conversación en SalesIQ solo si no hay una activa, usando el user_id del visitante."""
-    if not (SALESIQ_APP_ID and SALESIQ_DEPARTMENT_ID):
+def get_active_conversation_by_visitor(visitor_user_id, limit=100):
+    """
+    Busca conversaciones mediante GET /api/v2/{portal}/conversations y filtra cliente-side
+    por visitor.user_id == visitor_user_id y estado open/waiting.
+    Retorna la conversation object (dict) o None.
+    """
+    access_token = get_access_token()
+    if not access_token:
+        logging.error("get_active_conversation_by_visitor: no access token")
         return None
 
-    access_token = get_access_token()
-    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type":"application/json"}
+    params = {"app_id": SALESIQ_APP_ID, "limit": limit}
 
-    # 1️⃣ Buscar si ya existe una conversación activa del visitante
     try:
-        url_check = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations?visitor_id={visitor_user_id}&status=open"
-        r_check = requests.get(url_check, headers=headers, timeout=10)
-        logging.info(f"🔍 get_active_conversation_by_visitor: {r_check.status_code} {r_check.text}")
+        r = requests.get(url, headers=headers, params=params, timeout=10)
+        logging.info(f"get_active_conversation_by_visitor: {r.status_code} {r.text}")
+        if r.status_code != 200:
+            return None
 
-        if r_check.status_code == 200:
-            data = r_check.json().get("data", [])
-            if data:
-                conversation_id = data[0].get("id")
-                logging.info(f"✅ Conversación activa encontrada: {conversation_id}")
-                return {"conversation_id": conversation_id}
+        data = r.json().get("data", [])
+        # Buscar la conversación del visitante
+        for conv in data:
+            visitor = conv.get("visitor") or {}
+            if visitor.get("user_id") == visitor_user_id:
+                state = conv.get("chat_status", {}).get("state_key", "")
+                if state in ("open", "waiting", "connected"):
+                    return conv
+        return None
     except Exception as e:
-        logging.error(f"Error buscando conversación activa: {e}")
+        logging.exception("get_active_conversation_by_visitor exception")
+        return None
+    
+def create_conversation_if_configured(visitor_user_id, nombre, telefono, question):
+    """
+    Reusa conversación existente (por visitor_user_id) si la hay; si no, crea nueva.
+    Usa ONLY api/v2 endpoints y no envía tag_ids vacíos.
+    Devuelve un dict con info de la conversación (existing o created) o error.
+    """
+    if not (SALESIQ_APP_ID and SALESIQ_DEPARTMENT_ID):
+        logging.info("create_conversation_if_configured: salesiq app/department not configured")
+        return None
 
-    # 2️⃣ Si no hay conversación activa, crear una nueva
+    # 1) Intentar leer conversación activa (cache local opcional)
+    conv = get_active_conversation_by_visitor(visitor_user_id, limit=200)
+    if conv:
+        logging.info(f"✅ Reusing existing conversation for {visitor_user_id}: {conv.get('id') or conv.get('chat_id')}")
+        return {"status":"existing", "data": conv}
+
+    # 2) No existe: crear nueva conversación
+    access_token = get_access_token()
+    if not access_token:
+        return {"error":"no_access_token"}
+
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type":"application/json"}
+    payload = {
+        "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
+        "app_id": SALESIQ_APP_ID,
+        "department_id": SALESIQ_DEPARTMENT_ID,
+        "question": question,
+        "auto_assign": True
+    }
+
+    logging.info(f"create_conversation_if_configured: POST {url} payload={payload}")
     try:
-        url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
-        payload = {
-            "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
-            "app_id": SALESIQ_APP_ID,
-            "department_id": SALESIQ_DEPARTMENT_ID,
-            "question": question
-        }
-
         r = requests.post(url, headers=headers, json=payload, timeout=10)
         logging.info(f"create_conversation_if_configured: {r.status_code} {r.text}")
-        return r.json()
-
+        if r.status_code in (200,201):
+            # Normalizar respuesta
+            try:
+                return {"status":"created", "data": r.json().get("data")}
+            except Exception:
+                return {"status":"created", "raw": r.text}
+        else:
+            try:
+                return {"error": r.json(), "status_code": r.status_code}
+            except Exception:
+                return {"error": r.text, "status_code": r.status_code}
     except Exception as e:
-        logging.error(f"create_conversation_if_configured: exception -> {e}")
+        logging.exception("create_conversation_if_configured exception")
         return {"error": str(e)}
 
 #________________________________________________________________________________________
