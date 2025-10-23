@@ -326,54 +326,29 @@ def associate_tags_to_module(module_name, module_record_id, tag_ids):
 #corresponde al Departamente que se configura en ZOHO para recibir los mensajes
 # -----------------------
 
-def create_conversation_if_configured(visitor_id, name, phone, message):
-    access_token = get_access_token()
-    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+def create_conversation_if_configured(visitor_user_id, nombre, telefono, question):
+    """Crea conversación en SalesIQ solo si están configuradas APP_ID y DEPARTMENT_ID."""
+    if not (SALESIQ_APP_ID and SALESIQ_DEPARTMENT_ID):
+        return None
 
-    # 1️⃣ Buscar conversación activa del visitante
-    get_url = f"https://salesiq.zoho.com/api/v2/ticallmedia/visitors/{visitor_id}/conversations"
-    params = {"status": "open"}
-
-    try:
-        resp = requests.get(get_url, headers=headers, params=params)
-        logging.info(f"get_active_conversation_by_visitor: {resp.status_code} {resp.text}")
-    except Exception as e:
-        logging.error(f"Error al consultar conversaciones activas: {e}")
-        return {"error": str(e)}
-
-    # 2️⃣ Si hay conversaciones activas, reusar la primera
-    if resp.status_code == 200:
-        data = resp.json().get("data", [])
-        if data:
-            conv_id = data[0].get("id")
-            logging.info(f"✅ Reusando conversación activa {conv_id} para {visitor_id}")
-            return {"conversation_id": conv_id, "status": "reused"}
-
-    # 3️⃣ Si no hay conversación activa, crear una nueva
-    post_url = f"https://salesiq.zoho.com/api/v2/ticallmedia/conversations"
+    url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
     payload = {
-        "visitor": {
-            "id": visitor_id,
-            "name": name,
-            "phone": phone
-        },
-        "question": message
+        "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
+        "app_id": SALESIQ_APP_ID,
+        "department_id": SALESIQ_DEPARTMENT_ID,
+        "question": question
     }
 
-    # ❌ No incluir 'tag_ids'
+    access_token = get_access_token()
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
+
     try:
-        resp = requests.post(post_url, headers=headers, json=payload)
-        logging.info(f"create_conversation_if_configured: {resp.status_code} {resp.text}")
-        if resp.status_code == 200:
-            conv_id = resp.json().get("data", {}).get("id")
-            logging.info(f"🆕 Conversación creada correctamente: {conv_id}")
-        return resp.json()
+        r = requests.post(url, headers=headers, json=payload, timeout=10)
+        logging.info(f"create_conversation_if_configured: {r.status_code} {r.text}")
+        return r.json()
     except Exception as e:
-        logging.error(f"Error al crear conversación: {e}")
+        logging.error(f"create_conversation_if_configured: exception -> {e}")
         return {"error": str(e)}
-
-
-
 
 #________________________________________________________________________________________
 
