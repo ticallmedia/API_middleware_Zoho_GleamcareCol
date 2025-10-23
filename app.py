@@ -443,7 +443,7 @@ def get_active_conversation(visitor_id):
 #Se encarga de capturar en JSON la informacion que viene de la App A y lo desglosa para
 #extraer los datos importentes que pasaran a ZOHO
 # -----------------------
-"""@app.route('/api/from-waba', methods=['POST'])
+@app.route('/api/from-waba', methods=['POST'])
 def from_waba():
     data = request.json or {}
     logging.info(f"/api/from-waba — mensaje recibido: {data}")
@@ -494,9 +494,9 @@ def from_waba():
         "associate_result": associate_result,
         "conversation_resp": conv_resp,
         "visitor_id": zoho_visitor_id
-    })"""
+    })
 
-
+"""
 @app.route('/api/from-waba', methods=['POST'])
 def from_waba():
     data = request.json or {}
@@ -554,7 +554,7 @@ def from_waba():
         "conversation_resp": conv_resp,
         "visitor_id": zoho_visitor_id
     })
-
+"""
 #________________________________________________________________________________________
 
 
