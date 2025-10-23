@@ -326,53 +326,52 @@ def associate_tags_to_module(module_name, module_record_id, tag_ids):
 #corresponde al Departamente que se configura en ZOHO para recibir los mensajes
 # -----------------------
 
-
 def create_conversation_if_configured(visitor_id, name, phone, message):
-    """
-    Busca una conversación activa en Zoho SalesIQ.
-    Si existe, la reutiliza. Si no, crea una nueva.
-    """
     access_token = get_access_token()
-    if not access_token:
-        logging.error("❌ No se pudo obtener access_token en create_conversation_if_configured")
-        return {"error": "no_access_token"}, 401
-
     headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
 
-    # 1️⃣ Buscar conversación activa existente
-    get_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}/conversations"
-    params = {"limit": 1, "status": "open"}
+    # 1️⃣ Buscar conversación activa del visitante
+    get_url = f"https://salesiq.zoho.com/api/v2/ticallmedia/visitors/{visitor_id}/conversations"
+    params = {"status": "open"}
+
     try:
         resp = requests.get(get_url, headers=headers, params=params)
-        logging.info(f"🔍 get_active_conversation_by_visitor: {resp.status_code} {resp.text}")
-        if resp.status_code == 200:
-            data = resp.json().get("data", [])
-            if data and isinstance(data, list):
-                conv = data[0]
-                conv_id = conv.get("id")
-                logging.info(f"✅ Reusando conversación existente: {conv_id}")
-                return {"existing_conversation": conv}
+        logging.info(f"get_active_conversation_by_visitor: {resp.status_code} {resp.text}")
     except Exception as e:
-        logging.error(f"❌ Error verificando conversaciones activas: {e}")
+        logging.error(f"Error al consultar conversaciones activas: {e}")
+        return {"error": str(e)}
 
-    # 2️⃣ Si no hay conversación activa, crear una nueva
-    post_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    # 2️⃣ Si hay conversaciones activas, reusar la primera
+    if resp.status_code == 200:
+        data = resp.json().get("data", [])
+        if data:
+            conv_id = data[0].get("id")
+            logging.info(f"✅ Reusando conversación activa {conv_id} para {visitor_id}")
+            return {"conversation_id": conv_id, "status": "reused"}
+
+    # 3️⃣ Si no hay conversación activa, crear una nueva
+    post_url = f"https://salesiq.zoho.com/api/v2/ticallmedia/conversations"
     payload = {
         "visitor": {
-            "user_id": visitor_id,
+            "id": visitor_id,
             "name": name,
             "phone": phone
         },
         "question": message
     }
 
+    # ❌ No incluir 'tag_ids'
     try:
-        r = requests.post(post_url, headers=headers, json=payload)
-        logging.info(f"create_conversation_if_configured: {r.status_code} {r.text}")
-        return r.json()
+        resp = requests.post(post_url, headers=headers, json=payload)
+        logging.info(f"create_conversation_if_configured: {resp.status_code} {resp.text}")
+        if resp.status_code == 200:
+            conv_id = resp.json().get("data", {}).get("id")
+            logging.info(f"🆕 Conversación creada correctamente: {conv_id}")
+        return resp.json()
     except Exception as e:
-        logging.error(f"❌ Error creando conversación: {e}")
-        return {"error": str(e)}, 500
+        logging.error(f"Error al crear conversación: {e}")
+        return {"error": str(e)}
+
 
 
 
