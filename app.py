@@ -327,25 +327,42 @@ def associate_tags_to_module(module_name, module_record_id, tag_ids):
 # -----------------------
 
 def create_conversation_if_configured(visitor_user_id, nombre, telefono, question):
-    """Crea conversación en SalesIQ solo si están configuradas APP_ID y DEPARTMENT_ID."""
+    """Crea conversación en SalesIQ solo si no hay una activa, usando el user_id del visitante."""
     if not (SALESIQ_APP_ID and SALESIQ_DEPARTMENT_ID):
         return None
-
-    url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
-    payload = {
-        "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
-        "app_id": SALESIQ_APP_ID,
-        "department_id": SALESIQ_DEPARTMENT_ID,
-        "question": question
-    }
 
     access_token = get_access_token()
     headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
 
+    # 1️⃣ Buscar si ya existe una conversación activa del visitante
     try:
+        url_check = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations?visitor_id={visitor_user_id}&status=open"
+        r_check = requests.get(url_check, headers=headers, timeout=10)
+        logging.info(f"🔍 get_active_conversation_by_visitor: {r_check.status_code} {r_check.text}")
+
+        if r_check.status_code == 200:
+            data = r_check.json().get("data", [])
+            if data:
+                conversation_id = data[0].get("id")
+                logging.info(f"✅ Conversación activa encontrada: {conversation_id}")
+                return {"conversation_id": conversation_id}
+    except Exception as e:
+        logging.error(f"Error buscando conversación activa: {e}")
+
+    # 2️⃣ Si no hay conversación activa, crear una nueva
+    try:
+        url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
+        payload = {
+            "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
+            "app_id": SALESIQ_APP_ID,
+            "department_id": SALESIQ_DEPARTMENT_ID,
+            "question": question
+        }
+
         r = requests.post(url, headers=headers, json=payload, timeout=10)
         logging.info(f"create_conversation_if_configured: {r.status_code} {r.text}")
         return r.json()
+
     except Exception as e:
         logging.error(f"create_conversation_if_configured: exception -> {e}")
         return {"error": str(e)}
