@@ -325,241 +325,73 @@ def associate_tags_to_module(module_name, module_record_id, tag_ids):
 # Crear conversación (opcional) — usa visitor/v2 endpoint y requiere APP_ID + DEPARTMENT_ID
 #corresponde al Departamente que se configura en ZOHO para recibir los mensajes
 # -----------------------
-def _zoho_headers():
-    token = get_access_token()
-    return {
-        "Authorization": f"Zoho-oauthtoken {token}",
+def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None, tag_ids=None):
+    """Crea o actualiza visitante y devuelve respuesta de Zoho."""
+    access_token = get_access_token()
+    if not access_token:
+        logging.error("create_or_update_visitor: no access token available")
+        return {"error": "no_access_token"}, 401
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json"
     }
 
-# -----------------------
-# 0) Obtener o crear visitor en Zoho (usando visitor.id = "whatsapp_{phone}")
-# -----------------------
-def get_or_create_visitor_from_phone(phone):
-    """
-    Devuelve visitor_id real usado por Zoho (campo 'id' en la respuesta).
-    - Primero intenta GET /api/v2/{portal}/visitors/{visitor_identifier}
-    - Si 404/otro, hace POST /api/v2/{portal}/visitors para crear
-    Retorna visitor_id (string) o None si falla.
-    """
-    visitor_identifier = f"whatsapp_{phone}"
-    headers = _zoho_headers()
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
 
-    # 1) Intentar obtener
-    get_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_identifier}"
-    try:
-        r = requests.get(get_url, headers=headers, timeout=10)
-        logging.info(f"get_or_create_visitor_from_phone: GET {get_url} -> {r.status_code}")
-        if r.status_code == 200:
-            # La estructura puede ser {"object":"visitors","data":{...}} o similar
-            try:
-                j = r.json()
-                data = j.get("data") or {}
-                # si data es dict con id
-                if isinstance(data, dict):
-                    vid = data.get("id") or data.get("visitor_id") or visitor_identifier
-                    logging.info(f"Visitor exists -> {vid}")
-                    return vid
-            except Exception:
-                logging.warning("get_or_create_visitor_from_phone: parse GET response failed")
-        # si 404 o no encontrado, caemos a creación
-    except Exception as e:
-        logging.warning(f"get_or_create_visitor_from_phone: GET exception -> {e}")
-
-    # 2) Crear visitor (POST). Use visitor id consistente
-    post_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
     payload = {
-        "id": visitor_identifier,
-        "name": f"WhatsApp {phone}",
-        "contactnumber": phone,
-        "custom_fields": {"canal": "whatsapp"}
+        "id": str(visitor_id),
+        "name": nombre,
+        "contactnumber": telefono,
+        "custom_fields": custom_fields or {"canal": "whatsapp"},
+        "tag_ids": "" #[] #se incluye porque es obligatorio asi este vacio
     }
-    try:
-        r = requests.post(post_url, headers=headers, json=payload, timeout=10)
-        logging.info(f"get_or_create_visitor_from_phone: POST {post_url} -> {r.status_code} {r.text}")
-        if r.status_code in (200, 201):
-            try:
-                j = r.json()
-                data = j.get("data")
-                # data puede ser dict o lista
-                if isinstance(data, list) and data:
-                    item = data[0]
-                elif isinstance(data, dict):
-                    item = data
-                else:
-                    item = None
-                if item:
-                    vid = item.get("id") or item.get("visitor_id") or visitor_identifier
-                    logging.info(f"Visitor created -> {vid}")
-                    return vid
-                # fallback: return our identifier if server doesn't return id
-                return visitor_identifier
-            except Exception:
-                logging.warning("get_or_create_visitor_from_phone: parse POST response failed")
-                return visitor_identifier
-        else:
-            logging.error(f"get_or_create_visitor_from_phone: create failed: {r.status_code} {r.text}")
-            return None
-    except Exception as e:
-        logging.exception("get_or_create_visitor_from_phone: exception")
-        return None
 
+    # Incluir tags si existen
+    if tag_ids:
+        payload["tag_ids"] = tag_ids
 
-# -----------------------
-# 1) Buscar conversación activa (cliente-side) filtrando por visitor id/user_id
-# -----------------------
-def get_active_conversation_by_visitor(visitor_identifier, limit=50):
-    """
-    Lista conversaciones con GET /api/v2/{portal}/conversations (filtrando por app_id)
-    y busca la primera conversación cuyo visitor.id == visitor_identifier OR
-    visitor.user_id == visitor_identifier, y cuyo estado sea abierto (open/waiting/connected).
-    Retorna la conversation dict o None.
-    """
-    headers = _zoho_headers()
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
-    params = {"app_id": SALESIQ_APP_ID, "limit": limit}
-
-    try:
-        r = requests.get(url, headers=headers, params=params, timeout=10)
-        logging.info(f"get_active_conversation_by_visitor: GET {url} params={params} -> {r.status_code}")
-        if r.status_code != 200:
-            logging.warning(f"get_active_conversation_by_visitor: non-200 -> {r.status_code} {r.text}")
-            return None
-
-        j = r.json()
-        conversations = j.get("data", []) or []
-        for conv in conversations:
-            visitor = conv.get("visitor", {}) or {}
-            # visitor may have 'id' or 'user_id' depending on response
-            v_id = visitor.get("id") or visitor.get("visitor_id")
-            v_user_id = visitor.get("user_id")
-            if v_id == visitor_identifier or v_user_id == visitor_identifier:
-                state = conv.get("chat_status", {}).get("state_key") or conv.get("status") or ""
-                # Accept different possible keys: 'open','waiting','connected','active'
-                if state and state.lower() in ("open", "waiting", "connected", "active"):
-                    logging.info(f"Found active conversation id={conv.get('id') or conv.get('chat_id')}")
-                    return conv
-        return None
-    except Exception as e:
-        logging.exception("get_active_conversation_by_visitor exception")
-        return None
-
-
-# -----------------------
-# 2) Crear conversación solo si no hay una activa (usa visitor.id real)
-# -----------------------
-def create_conversation_if_configured_by_phone(phone, message_text):
-    """
-    Flujo definitivo:
-    - get_or_create_visitor_from_phone(phone) -> visitor_real_id
-    - buscar conversación activa para visitor_real_id
-    - si existe -> devolverla
-    - si no -> POST /api/v2/{portal}/conversations con visitor.id = visitor_real_id
-    Devuelve dict con conversation object (normalizado) o None / error dict.
-    """
-    if not (SALESIQ_APP_ID and SALESIQ_DEPARTMENT_ID):
-        logging.info("create_conversation_if_configured_by_phone: APP/DEPT not configured")
-        return None
-
-    # 1) obtener o crear visitor en Zoho (nos aseguramos de tener visitor.id real)
-    visitor_real_id = get_or_create_visitor_from_phone(phone)
-    if not visitor_real_id:
-        logging.error("create_conversation_if_configured_by_phone: cannot obtain visitor id")
-        return None
-
-    # 2) buscar conversación activa (por visitor real id)
-    conv = get_active_conversation_by_visitor(visitor_real_id, limit=50)
-    if conv:
-        logging.info("create_conversation_if_configured_by_phone: reusing existing conversation")
-        return {"status": "existing", "data": conv}
-
-    # 3) crear nueva conversación con visitor.id
-    headers = _zoho_headers()
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
-    payload = {
-        "visitor": {"id": visitor_real_id},
-        "app_id": SALESIQ_APP_ID,
-        "department_id": SALESIQ_DEPARTMENT_ID,
-        "question": message_text,
-        "auto_assign": True
-    }
+    logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
 
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=10)
-        logging.info(f"create_conversation_if_configured_by_phone: POST {url} -> {r.status_code} {r.text}")
-        if r.status_code in (200, 201):
-            # normalizar: respuesta puede tener data list/dict
-            try:
-                data = r.json().get("data")
-                if isinstance(data, list) and data:
-                    conv_obj = data[0]
-                elif isinstance(data, dict):
-                    conv_obj = data
-                else:
-                    conv_obj = None
-                return {"status": "created", "data": conv_obj}
-            except Exception:
-                logging.warning("create_conversation_if_configured_by_phone: parse created response failed")
-                return {"status": "created", "raw": r.text}
-        else:
-            logging.error("create_conversation_if_configured_by_phone: create failed")
-            try:
-                return {"error": r.json(), "status_code": r.status_code}
-            except Exception:
-                return {"error": r.text, "status_code": r.status_code}
+        logging.info(f"create_or_update_visitor: status {r.status_code} resp={r.text}")
+
+        try:
+            return r.json(), r.status_code
+        except Exception as e:
+            logging.error(f"create_or_update_visitor: invalid response: {e}")
+            return {"error":"invalid_response","details": str(e)},r.status_code
+
     except Exception as e:
-        logging.exception("create_conversation_if_configured_by_phone exception")
-        return {"error": str(e)}
-    
-    
+        logging.error(f"create_or_update_visitor: exception -> {e}")
+        return {"error": str(e)}, 500
+
+
+
+
 def create_conversation_if_configured(visitor_user_id, nombre, telefono, question):
-    """
-    Reusa conversación existente (por visitor_user_id) si la hay; si no, crea nueva.
-    Usa ONLY api/v2 endpoints y no envía tag_ids vacíos.
-    Devuelve un dict con info de la conversación (existing o created) o error.
-    """
+    """Crea conversación en SalesIQ solo si están configuradas APP_ID y DEPARTMENT_ID."""
     if not (SALESIQ_APP_ID and SALESIQ_DEPARTMENT_ID):
-        logging.info("create_conversation_if_configured: salesiq app/department not configured")
         return None
 
-    # 1) Intentar leer conversación activa (cache local opcional)
-    conv = get_active_conversation_by_visitor(visitor_user_id, limit=200)
-    if conv:
-        logging.info(f"✅ Reusing existing conversation for {visitor_user_id}: {conv.get('id') or conv.get('chat_id')}")
-        return {"status":"existing", "data": conv}
-
-    # 2) No existe: crear nueva conversación
-    access_token = get_access_token()
-    if not access_token:
-        return {"error":"no_access_token"}
-
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
-    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type":"application/json"}
+    url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
     payload = {
         "visitor": {"user_id": visitor_user_id, "name": nombre, "phone": telefono},
         "app_id": SALESIQ_APP_ID,
         "department_id": SALESIQ_DEPARTMENT_ID,
-        "question": question,
-        "auto_assign": True
+        "question": question
     }
 
-    logging.info(f"create_conversation_if_configured: POST {url} payload={payload}")
+    access_token = get_access_token()
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
+
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=10)
         logging.info(f"create_conversation_if_configured: {r.status_code} {r.text}")
-        if r.status_code in (200,201):
-            # Normalizar respuesta
-            try:
-                return {"status":"created", "data": r.json().get("data")}
-            except Exception:
-                return {"status":"created", "raw": r.text}
-        else:
-            try:
-                return {"error": r.json(), "status_code": r.status_code}
-            except Exception:
-                return {"error": r.text, "status_code": r.status_code}
+        return r.json()
     except Exception as e:
-        logging.exception("create_conversation_if_configured exception")
+        logging.error(f"create_conversation_if_configured: exception -> {e}")
         return {"error": str(e)}
 
 #________________________________________________________________________________________
