@@ -344,8 +344,8 @@ def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None, t
         "name": nombre,
         "contactnumber": telefono,
         "custom_fields": custom_fields or {"canal": "whatsapp"},
-        "tag_ids": tag_ids #[] #se incluye porque es obligatorio asi este vacio
-        #"tag_ids": "" 
+        "tag_ids": "" #[] #se incluye porque es obligatorio asi este vacio
+        
     }
 
     # Incluir tags si existen
@@ -462,7 +462,7 @@ def from_waba():
     telefono = user_id
 
     # 1️ Crear o actualizar visitante
-    visitor_resp, status = create_or_update_visitor(visitor_id, nombre, telefono, tag_name)
+    visitor_resp, status = create_or_update_visitor(visitor_id, nombre, telefono, "whatsapp",tag_name)
     logging.info(f"/api/from-waba — visitor_resp: {visitor_resp}")
 
     # Extraer visitor_id real de Zoho (si lo genera)
