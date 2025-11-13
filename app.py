@@ -157,7 +157,7 @@ def create_or_update_visitor(visitor_id, nombre, telefono, custom_fields=None, t
             return {"error": "invalid_response", "details": str(e)}, r.status_code
 
     except Exception as e:
-        logging.error(f"create_or_update_visitor: expcion -> {e}")
+        logging.error(f"create_or_update_visitor: exception -> {e}")
         return {"error": str(e)}, 500
 
 
@@ -225,6 +225,15 @@ def from_waba():
     if user_msg:
         conv_resp = create_conversation_if_configured(zoho_visitor_id, nombre, telefono, user_msg)
     
+    return jsonify({
+        "status": "ok",
+        "visitor_resp": visitor_resp,
+        "visitor_status_code": status,
+        #"tag_result": tag_result,
+        #"associate_result": associate_result,
+        "conversation_resp": conv_resp,
+        "visitor_id": zoho_visitor_id
+    })
    
 
 
