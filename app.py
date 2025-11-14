@@ -224,7 +224,7 @@ def busca_conversacion(phone):
             logging.info(f"busca_conversacion: No se encontraron conversaciones abiertas para el telefono {phone}")
             return None
     except Exception as e:
-        logging.error("busca_conversacion: Ocurrió un error inesperado... -> {e}")    
+        logging.error(f"busca_conversacion: Ocurrió un error inesperado... -> {e}")    
         return None
     
 
@@ -305,7 +305,7 @@ def from_waba():
             zoho_visitor_id = visitor_resp["data"].get("id")
         
         if not zoho_visitor_id:
-            logging.error(f"No se puedo crear o encontrar el visitante en zoho. Avbortando...")
+            logging.error(f"No se puedo crear o encontrar el visitante en zoho. Abortando...")
 
             return jsonify({
                 "status": "error",
