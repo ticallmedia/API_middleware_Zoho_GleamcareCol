@@ -92,13 +92,19 @@ def oauth_callback():
         return jsonify({"error": str(e)}), 500
 
 #Generación de Token provisional    
+import requests
+import logging
+
+# Asume que estas variables de entorno o de configuración están cargadas correctamente
+# ZOHO_REFRESH_TOKEN, ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET
+
 def get_access_token():
-    #Refresca o usa el token de zoho
-    if ZOHO_ACCESS_TOKEN:
-        return ZOHO_ACCESS_TOKEN
-    
-    if not (ZOHO_ACCESS_TOKEN and ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET):
-        logging.error(f"get_access_token: Credenciales Faltantes")
+    """
+    Obtiene un nuevo access_token de Zoho utilizando el refresh_token.
+    Esta es la forma correcta de asegurar que el token siempre sea válido.
+    """
+    if not (ZOHO_REFRESH_TOKEN and ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET):
+        logging.error("get_access_token: Faltan credenciales críticas (REFRESH_TOKEN, CLIENT_ID, o CLIENT_SECRET).")
         return None
     
     url = "https://accounts.zoho.com/oauth/v2/token"
@@ -110,11 +116,25 @@ def get_access_token():
     }
 
     try:
-        r = requests.post(url, params=params, timeout=10)
-        data = r.json()
-        return data.get("access_token")
+        logging.info("Solicitando un nuevo access_token a Zoho...")
+        response = requests.post(url, params=params, timeout=10)
+        response.raise_for_status()  # Verificar si hubo errores HTTP
+        
+        data = response.json()
+        access_token = data.get("access_token")
+
+        if access_token:
+            logging.info("Nuevo access_token obtenido exitosamente.")
+            return access_token
+        else:
+            logging.error(f"La respuesta de Zoho no incluyó un access_token. Respuesta: {data}")
+            return None
+            
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f"get_access_token: Error HTTP al refrescar token. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
+        return None
     except Exception as e:
-        logging.error(f"get_access_token: exception -> {e}")
+        logging.error(f"get_access_token: Ocurrió una excepción inesperada -> {e}")
         return None
     
 #________________________________________________________________________________________
@@ -185,7 +205,7 @@ def create_conversation_if_configured(visitor_user_id, nombre, telefono,question
         logging.error(f"create_conversation_if_configured: excepcion -> {e}")
         return {"error": str(e)}
 
-
+"""
 def busca_conversacion(phone):
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
     params = {
@@ -197,22 +217,7 @@ def busca_conversacion(phone):
     headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
     
     try:
-        """
-        access_token = get_access_token()
-
-        if not access_token:
-            logging.error(f"busca_conversacion: No se puedo encontra el access_token")
-            return None
         
-        headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
-
-        url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
-        params = {
-            "phone": phone,
-            "status": "open"
-        }
-        """
-
         #GET para obtener el codigo
         response = requests.get(url, headers=headers, params=params, timeout=10)
         
@@ -250,7 +255,57 @@ def busca_conversacion(phone):
         logging.error(f"busca_conversacion: Ocurrió un error inesperado... -> {e}")    
         return None
     
+"""
 
+def busca_conversacion(phone):
+    """
+    Busca una conversación abierta en Zoho SalesIQ para un número de teléfono.
+    """
+    access_token = get_access_token()
+    if not access_token:
+        logging.error("busca_conversacion: No se pudo obtener un access_token válido. Abortando búsqueda.")
+        return None
+
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+    params = {
+        "phone": phone,
+        "status": "open"
+    }
+    
+    try:
+        logging.info(f"Buscando conversación abierta para el teléfono: {phone}")
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        
+        response.raise_for_status()
+        response_data = response.json()
+
+        logging.info(f"busca_conversacion: Respuesta de la API: {response_data}")
+
+        if 'data' in response_data and response_data.get('data'):
+            primera_conversacion = response_data['data'][0]
+            conversation_id = primera_conversacion.get('id')
+
+            if conversation_id:
+                logging.info(f"Se encontró una conversación abierta con ID: {conversation_id}")
+                return conversation_id
+        
+        logging.info(f"No se encontraron conversaciones abiertas para el teléfono {phone}")
+        return None
+    
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f"busca_conversacion: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
+        return None
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"busca_conversacion: Error de conexión (Timeout, DNS, etc): {req_err}")
+        return None
+    except Exception as e:
+        logging.error(f"busca_conversacion: Ocurrió un error inesperado -> {e}")    
+        return None
+    
 def envio_mesaje_a_conversacion(conversation_id,user_msg):
     """Envía el mensaj a una conversacion de zoho sales IQ existente"""
 
