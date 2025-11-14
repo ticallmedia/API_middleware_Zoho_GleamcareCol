@@ -187,7 +187,17 @@ def create_conversation_if_configured(visitor_user_id, nombre, telefono,question
 
 
 def busca_conversacion(phone):
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    params = {
+        "phone": phone,
+        "status": "open"
+    }
+
+    access_token = get_access_token()
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
+
     try:
+        """
         access_token = get_access_token()
 
         if not access_token:
@@ -201,28 +211,33 @@ def busca_conversacion(phone):
             "phone": phone,
             "status": "open"
         }
+        """
 
         #GET para obtener el codigo
-        response = requests.get(url, headers=headers, params=params)
-
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        
         #revision si hay un error de HTTP
         response.raise_for_status()
         #Conversion de la respuesta en json
         response_data = response.json()
 
+        logging.info(f"busca_conversacion: revision 1 {response_data}")
+
         if 'data' in response_data and response_data.get('data'):
             primera_conversacion = response_data['data'][0]
             conversation_id = primera_conversacion.get('id')
 
+            logging.info(f"busca_conversacion: revision 2 {conversation_id}")
+
             if conversation_id:
                 logging.info(f"busca_conversacion: número de conversacion {conversation_id}")
                 return conversation_id
-            else:
-                logging.error("busca_conversacion: No se encontraron conversaciones Abiertas... -> ")        
-                return None
-        else:
-            logging.info(f"busca_conversacion: No se encontraron conversaciones abiertas para el telefono {phone}")
-            return None
+            #else:
+             #   logging.error("busca_conversacion: No se encontraron conversaciones Abiertas... -> ")        
+              #  return None
+        #else:
+        logging.info(f"busca_conversacion: No se encontraron conversaciones abiertas para el telefono {phone}")
+        return None
     except Exception as e:
         logging.error(f"busca_conversacion: Ocurrió un error inesperado... -> {e}")    
         return None
@@ -309,7 +324,7 @@ def from_waba():
 
             return jsonify({
                 "status": "error",
-                "message": "Faloo al crear el visitante en zoho",
+                "message": "Fallo al crear el visitante en zoho",
                 "details": visitor_resp
                 }),500
 
