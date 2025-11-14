@@ -379,17 +379,13 @@ def from_waba():
         
         # Extraer visitor_id real de Zoho (si lo genera)
         zoho_visitor_id = None
-        #if status == 200 and  isinstance(visitor_resp.get("data"), dict):
 
-        if isinstance(visitor_resp.get("data"), dict):
-            zoho_visitor_id = visitor_resp["data"].get("id")
-
-        """if isinstance(visitor_resp, dict):
+        if isinstance(visitor_resp, dict):
             zoho_visitor_id = (
                 visitor_resp.get("data", [{}])[0].get("id")
                 if isinstance(visitor_resp.get("data"), list)
                 else visitor_resp.get("data", {}).get("id")
-            ) or visitor_id_local"""
+            ) or visitor_id_local
         
         if not zoho_visitor_id:
             logging.error(f"No se puedo crear o encontrar el visitante en zoho. Abortando...")
