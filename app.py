@@ -195,7 +195,7 @@ def busca_conversacion(phone):
 
     access_token = get_access_token()
     headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
-
+    
     try:
         """
         access_token = get_access_token()
@@ -237,6 +237,14 @@ def busca_conversacion(phone):
               #  return None
         #else:
         logging.info(f"busca_conversacion: No se encontraron conversaciones abiertas para el telefono {phone}")
+        return None
+    
+    # Manejar errores de forma específica
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f"busca_conversacion: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
+        return None
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"busca_conversacion: Error de conexión (Timeout, DNS, etc): {req_err}")
         return None
     except Exception as e:
         logging.error(f"busca_conversacion: Ocurrió un error inesperado... -> {e}")    
