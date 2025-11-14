@@ -31,8 +31,9 @@ Versión: 1.2
 
 - Se establece generación de token provicional para abrir conversaciones
 - Mensaje de apertura de chat
-- Identificacion de conversación
-- Continuacion de chat partiendo del id de la conversación 
+- Identificacion de conversación, se crea funcion  -- busca_conversacion(phone)
+- Continuacion de chat partiendo del id de la conversación , se modifica funcion from_waba()
+- Se crea funcion que envia mensajes si ya existe una conversacion, --envio_mesaje_a_conversacion(conversation_id,user_msg)
 
 
 """
