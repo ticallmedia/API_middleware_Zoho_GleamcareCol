@@ -184,6 +184,72 @@ def create_conversation_if_configured(visitor_user_id, nombre, telefono,question
         logging.error(f"create_conversation_if_configured: excepcion -> {e}")
         return {"error": str(e)}
 
+
+def busca_conversacion(phone):
+    try:
+        access_token = get_access_token()
+
+        if not access_token:
+            logging.error(f"busca_conversacion: No se puedo encontra el access_token")
+            return None
+        
+        headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
+
+        url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+        params = {
+            "phone": phone,
+            "status": "open"
+        }
+
+        #GET para obtener el codigo
+        response = requests.get(url, headers=headers, params=params)
+
+        #revision si hay un error de HTTP
+        response.raise_for_status()
+        #Conversion de la respuesta en json
+        response_data = response.json()
+
+        if 'data' in response_data and response_data.get('data'):
+            primera_conversacion = response_data['data'][0]
+            conversation_id = primera_conversacion.get('id')
+
+            if conversation_id:
+                logging.info(f"busca_conversacion: número de conversacion {conversation_id}")
+                return conversation_id
+            else:
+                logging.error("busca_conversacion: No se encontraron conversaciones Abiertas... -> ")        
+                return None
+        else:
+            logging.info(f"busca_conversacion: No se encontraron conversaciones abiertas para el telefono {phone}")
+            return None
+    except Exception as e:
+        logging.error("busca_conversacion: Ocurrió un error inesperado... -> {e}")    
+        return None
+    
+
+def envio_mesaje_a_conversacion(conversation_id,user_msg):
+    """Envía el mensaj a una conversacion de zoho sales IQ existente"""
+
+    access_token = get_access_token()
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", "Content-Type": "application/json"}
+
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversation_id}/messages"
+    
+    payload = {
+        "text": user_msg
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        #revision si hay un error de HTTP
+        response.raise_for_status()
+        logging.info(f"envio_mesaje_a_conversacion: Mensaje enviado exitosamente a la conversación: {conversation_id}")
+        return response.json()
+    except Exception as e:
+        logging.error(f"envio_mesaje_a_conversacion: Error inesperado al enviar mensaje: -->{e}")
+        return {"error": str(e)}
+
+
 #________________________________________________________________________________________
 #________________________________________________________________________________________
 #Funciones Principales
@@ -200,43 +266,65 @@ def from_waba():
     tag_color = data.get("tag_color") or "#FF5733"
 
     if not user_id:
-        return jsonify({"error":"missing user_id" }), 400
+            return jsonify({"error":"missing user_id" }), 400
     
-    visitor_id = f"whatsapp_{user_id}"
-    nombre = f"whatsapp {user_id}"
-    telefono = user_id
+    #1. Busca si existe una conversaicon abierta
+    conversation_id = busca_conversacion(user_id)
 
-    #1.Crear o actualizar visitante (importante captura el tag)
-    visitor_resp, status = create_or_update_visitor(visitor_id, nombre, telefono, "whatsapp", tag_name)
-    logging.info(f"/api/from-waba - visitor_resp: {visitor_resp}")
+    if conversation_id:
 
-    # Extraer visitor_id real de Zoho (si lo genera)
-    zoho_visitor_id = None
-    if isinstance(visitor_resp, dict):
-        zoho_visitor_id = (
-            visitor_resp.get("data", [{}])[0].get("id")
-            if isinstance(visitor_resp.get("data"), list)
-            else visitor_resp.get("data", {}).get("id")
-        ) or visitor_id
+        envio_mensaje = envio_mesaje_a_conversacion(conversation_id,user_msg)
 
-    #2.Crear conversacion
+        # Si se encontró, devuelve el ID
+        return jsonify({
+            "status": "Mensaje enviado",
+            "message": "Mensaje añadido a la conversaión existente...",
+            "conversation_id": conversation_id,
+            "send_response": envio_mensaje
+        }), 200
+    else:
+        logging.info(f"No se encontro conversación para el {user_id}. Creando nuevo visitante y conversación...")
 
-    conv_resp = None
-    if user_msg:
-        conv_resp = create_conversation_if_configured(zoho_visitor_id, nombre, telefono, user_msg)
-    
-    return jsonify({
-        "status": "ok",
-        "visitor_resp": visitor_resp,
-        "visitor_status_code": status,
-        #"tag_result": tag_result,
-        #"associate_result": associate_result,
-        "conversation_resp": conv_resp,
-        "visitor_id": zoho_visitor_id
-    })
+        #datos del visitante
+        visitor_resp = None
+        conv_resp = None
+        final_status_code = 201 #201 creado
+
+        #Crear o actualizar al visitante en zoho
+        visitor_id_local = f"whatsapp_{user_id}"
+        nombre = f"whatsapp {user_id}"
+        telefono = user_id
+
+        #Crear o actualizar visitante (importante captura el tag)
+        visitor_resp, status = create_or_update_visitor(visitor_id_local, nombre, telefono, "whatsapp", tag_name)
+        
+        # Extraer visitor_id real de Zoho (si lo genera)
+        zoho_visitor_id = None
+        if status == 200 and  isinstance(visitor_resp.get("data"), dict):
+            zoho_visitor_id = visitor_resp["data"].get("id")
+        
+        if not zoho_visitor_id:
+            logging.error(f"No se puedo crear o encontrar el visitante en zoho. Avbortando...")
+
+            return jsonify({
+                "status": "error",
+                "message": "Faloo al crear el visitante en zoho",
+                "details": visitor_resp
+                }),500
+
+        #2.Crear conversacion con el primer mensaje
+
+        if user_msg:
+            conv_resp = create_conversation_if_configured(zoho_visitor_id, nombre, telefono, user_msg)
+        
+        return jsonify({
+            "status": "ok",
+            "visitor_resp": visitor_resp,
+            "visitor_status_code": status,
+            "conversation_resp": conv_resp,
+            "visitor_id": zoho_visitor_id
+        }), final_status_code
    
-
-
 #________________________________________________________________________________________
 # -----------------------
 # GET verification endpoint for Zoho webhook subscription
