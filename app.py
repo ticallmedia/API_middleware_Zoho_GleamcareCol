@@ -284,7 +284,7 @@ def envio_mesaje_a_conversacion(conversation_id,user_msg):
     """
     Envía el mensaj a una conversacion de zoho sales IQ existente
     """
-    if user_msg in "btn_1":
+    if user_msg in "btn_si1":
         user_msg = "Si"
     else:
         user_msg
