@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, jsonify, json
+from flask import Flask, render_template, request, jsonify
+from json import JSONDecodeError
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -35,7 +36,8 @@ Versión: 1.2
 - Continuacion de chat partiendo del id de la conversación , se modifica funcion from_waba()
 - Se crea funcion que envia mensajes si ya existe una conversacion, --envio_mesaje_a_conversacion(conversation_id,user_msg)
 - Se agrega variables globales CACHED_ACCESS_TOKEN, TOKEN_EXPIRATION_TIME para consultar access_token y solo crear cuando sea necesario
-
+- Se agrega JSONDecodeError, debido a que habia respuestas que llegaban a zoho, y devolvian a la 
+api un valor vacio que la Api persivia como un error, se agrega para hacer una excepcion y que continue el flujo 
 
 """
 #________________________________________________________________________________________
@@ -284,11 +286,11 @@ def envio_mesaje_a_conversacion(conversation_id,user_msg):
     """
 
     access_token = get_access_token()
+
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversation_id}/messages"
     headers = {"Authorization": f"Zoho-oauthtoken {access_token}", 
                "Content-Type": "application/json"}
 
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversation_id}/messages"
-    
     payload = {
         "text": user_msg
     }
@@ -297,8 +299,21 @@ def envio_mesaje_a_conversacion(conversation_id,user_msg):
         response = requests.post(url, headers=headers, json=payload)
         #revision si hay un error de HTTP
         response.raise_for_status()  # Verificar si hubo errores HTTP
-        logging.info(f"envio_mesaje_a_conversacion: Mensaje enviado exitosamente a la conversación: {conversation_id}")
-        return response.json()
+        logging.info(f"envio_mesaje_a_conversacion: Enviando mensaje a la conversación: {conversation_id}")
+        
+        try:
+            response_data =  response.json()
+            logging.info(f"envio_mesaje_a_co: respuesta de API: {response_data}")
+            return True
+        except JSONDecodeError:
+            logging.info(f"envio_mesaje_a_conversacion: Mensajes enviado con exito, la API devolvio una respuesta vacia (200 OK) lo cual es normal...")
+    
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f"envio_mesaje_a_conversacion: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
+        return False
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"envio_mesaje_a_conversacion: Error de conexión: {req_err}")
+        return False
     except Exception as e:
         logging.error(f"envio_mesaje_a_conversacion: Error inesperado al enviar mensaje: -->{e}")
         return {"error": str(e)}
