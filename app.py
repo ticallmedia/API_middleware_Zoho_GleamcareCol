@@ -302,7 +302,7 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
         mensaje = "Digital Marketing 💻"
     elif mensaje in ["btn_7"]:
         mensaje = "Paid Social Media 📊"
-    elif mensaje in "[btn_8"]:
+    elif mensaje in ["btn_8"]:
         mensaje = "E-commerce Strategy 🛒"
     elif mensaje in ["btn_9"]:
         mensaje = "Display Media 📺"
