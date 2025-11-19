@@ -280,36 +280,36 @@ def busca_conversacion(phone):
         logging.error(f"busca_conversacion: Ocurrió un error inesperado -> {e}")    
         return None
     
-def envio_mesaje_a_conversacion(conversation_id,user_msg):
+def envio_mesaje_a_conversacion(conversation_id,mensaje):
     """
     Envía el mensaj a una conversacion de zoho sales IQ existente
     """
-    if user_msg in "btn_si1":
-        user_msg = "Si"
-    elif user_msg in "btn_no1":
-        user_msg = "No"
-    elif user_msg in "btn_1":
-        user_msg = "DDA & Mobile Campaigns 📱"
-    elif user_msg in "btn_2":
-        user_msg = "'Websites 🌐'"
-    elif user_msg in "btn_3":
-        user_msg = "Advertising Photography 📸"
-    elif user_msg in "btn_4":
-        user_msg = "Content Marketing ✍️"
-    elif user_msg in "btn_5":
-        user_msg = "Media Strategy 📈"
-    elif user_msg in "btn_6":
-        user_msg = "Digital Marketing 💻"
-    elif user_msg in "btn_7":
-        user_msg = "Paid Social Media 📊"
-    elif user_msg in "btn_8":
-        user_msg = "E-commerce Strategy 🛒"
-    elif user_msg in "btn_9":
-        user_msg = "Display Media 📺"
-    elif user_msg in "btn_0":
-        user_msg = "Hablar con un agente 🗣️"
+    if mensaje in ["btn_si1"]:
+        mensaje = "Si"
+    elif mensaje in ["btn_no1"]:
+        mensaje = "No"
+    elif mensaje in ["btn_1"]:
+        mensaje = "DDA & Mobile Campaigns 📱"
+    elif mensaje in ["btn_2"]:
+        mensaje = "'Websites 🌐'"
+    elif mensaje in ["btn_3"]:
+        mensaje = "Advertising Photography 📸"
+    elif mensaje in ["btn_4"]:
+        mensaje = "Content Marketing ✍️"
+    elif mensaje in ["btn_5"]:
+        mensaje = "Media Strategy 📈"
+    elif mensaje in ["btn_6"]:
+        mensaje = "Digital Marketing 💻"
+    elif mensaje in ["btn_7"]:
+        mensaje = "Paid Social Media 📊"
+    elif mensaje in "[btn_8"]:
+        mensaje = "E-commerce Strategy 🛒"
+    elif mensaje in ["btn_9"]:
+        mensaje = "Display Media 📺"
+    elif mensaje in ["btn_0"]:
+        mensaje = "Hablar con un agente 🗣️"
     else:
-        user_msg
+        mensaje
 
     access_token = get_access_token()
 
