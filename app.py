@@ -284,29 +284,29 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
     """
     Envía el mensaj a una conversacion de zoho sales IQ existente
     """
-    if mensaje in ["btn_si1"]:
+    if "btn_si1" in mensaje:
         mensaje = "Si"
-    elif mensaje in ["btn_no1"]:
+    elif "btn_no1" in mensaje:
         mensaje = "No"
-    elif mensaje in ["btn_1"]:
+    elif "btn_1" in mensaje:
         mensaje = "DDA & Mobile Campaigns 📱"
-    elif mensaje in ["btn_2"]:
+    elif "btn_2" in mensaje:
         mensaje = "'Websites 🌐'"
-    elif mensaje in ["btn_3"]:
+    elif "btn_3" in mensaje:
         mensaje = "Advertising Photography 📸"
-    elif mensaje in ["btn_4"]:
+    elif "btn_4" in mensaje:
         mensaje = "Content Marketing ✍️"
-    elif mensaje in ["btn_5"]:
+    elif "btn_5" in mensaje:
         mensaje = "Media Strategy 📈"
-    elif mensaje in ["btn_6"]:
+    elif "btn_6" in mensaje:
         mensaje = "Digital Marketing 💻"
-    elif mensaje in ["btn_7"]:
+    elif "btn_7" in mensaje:
         mensaje = "Paid Social Media 📊"
-    elif mensaje in ["btn_8"]:
+    elif "btn_8" in mensaje:
         mensaje = "E-commerce Strategy 🛒"
-    elif mensaje in ["btn_9"]:
+    elif "btn_9" in mensaje:
         mensaje = "Display Media 📺"
-    elif mensaje in ["btn_0"]:
+    elif "btn_0" in mensaje:
         mensaje = "Hablar con un agente 🗣️"
     else:
         mensaje
