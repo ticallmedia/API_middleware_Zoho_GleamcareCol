@@ -318,7 +318,7 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
                "Content-Type": "application/json"}
 
     payload = {
-        "text": user_msg
+        "text": mensaje
     }
 
     try:
