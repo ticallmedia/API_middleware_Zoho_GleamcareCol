@@ -289,25 +289,25 @@ def envio_mesaje_a_conversacion(conversation_id,user_msg):
     elif user_msg in "btn_no1":
         user_msg = "No"
     elif user_msg in "btn_1":
-        user_msg = "'DDA & Mobile Campaigns' 📱"
+        user_msg = "DDA & Mobile Campaigns 📱"
     elif user_msg in "btn_2":
         user_msg = "'Websites 🌐'"
     elif user_msg in "btn_3":
-        user_msg = "'Advertising Photography 📸'"
+        user_msg = "Advertising Photography 📸"
     elif user_msg in "btn_4":
-        user_msg = "'Content Marketing ✍️'"
+        user_msg = "Content Marketing ✍️"
     elif user_msg in "btn_5":
-        user_msg = "'Media Strategy 📈'"
+        user_msg = "Media Strategy 📈"
     elif user_msg in "btn_6":
-        user_msg = "'Digital Marketing 💻'"
+        user_msg = "Digital Marketing 💻"
     elif user_msg in "btn_7":
-        user_msg = "'Paid Social Media 📊'"
+        user_msg = "Paid Social Media 📊"
     elif user_msg in "btn_8":
-        user_msg = "'E-commerce Strategy 🛒'"
+        user_msg = "E-commerce Strategy 🛒"
     elif user_msg in "btn_9":
-        user_msg = "'Display Media 📺'"
+        user_msg = "Display Media 📺"
     elif user_msg in "btn_0":
-        user_msg = "'Hablar con un agente 🗣️'"
+        user_msg = "Hablar con un agente 🗣️"
     else:
         user_msg
 
@@ -360,8 +360,17 @@ def from_waba():
 
     user_id = data.get("user_id")
     user_msg = data.get("message")
-    tag_name = data.get("tag")
+    tag_name = data.get("tag", "soporte_urgente")
     tag_color = data.get("tag_color") or "#FF5733"
+
+    #Se crea mensaje para agregar el cambio de etiqueta
+    mensaje_formateado = ""
+    
+    if tag_name == "respuesta_bot":
+        mensaje_formateado = f"[🤖 Bot]: {user_msg}"
+    else:
+        mensaje_formateado = f"[👤 Usuario]: {user_msg}"
+
 
     if not user_id:
         return jsonify({"error":"missing user_id" }), 400
@@ -371,7 +380,7 @@ def from_waba():
 
     if conversation_id:
 
-        envio_mensaje = envio_mesaje_a_conversacion(conversation_id,user_msg)
+        envio_mensaje = envio_mesaje_a_conversacion(conversation_id,mensaje_formateado)
 
         # Si se encontró, devuelve el ID
         return jsonify({
@@ -419,8 +428,8 @@ def from_waba():
 
         #Crear conversacion con el primer mensaje
 
-        if user_msg:
-            conv_resp = create_conversation_if_configured(zoho_visitor_id, nombre, telefono, user_msg)
+        if mensaje_formateado:
+            conv_resp = create_conversation_if_configured(zoho_visitor_id, nombre, telefono, mensaje_formateado)
         
         return jsonify({
             "status": "ok",
