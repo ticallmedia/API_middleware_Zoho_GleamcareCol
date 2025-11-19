@@ -318,7 +318,8 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
                "Content-Type": "application/json"}
 
     payload = {
-        "text": mensaje
+        "text": mensaje,
+        "sent_by": "visitor" #se utiliza para que siempre distinga que lo envio el visitando el mensaje
     }
 
     try:
