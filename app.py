@@ -280,7 +280,7 @@ def busca_conversacion(phone):
         logging.error(f"busca_conversacion: Ocurrió un error inesperado -> {e}")    
         return None
     
-def envio_mesaje_a_conversacion(conversation_id,mensaje):
+def envio_mesaje_a_conversacion(conversation_id,mensaje, sender_type=None):
     """
     Envía el mensaj a una conversacion de zoho sales IQ existente
     """
@@ -318,9 +318,12 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
                "Content-Type": "application/json"}
 
     payload = {
-        "text": mensaje,
-        "sent_by": "visitor" #se utiliza para que siempre distinga que lo envio el visitando el mensaje
+        "text": mensaje
     }
+
+    if sender_type:
+        #se utiliza para que siempre distinga que lo envio el visitando el mensaje
+        payload["sent_by"] = sender_type
 
     try:
         response = requests.post(url, headers=headers, json=payload)
@@ -366,9 +369,11 @@ def from_waba():
 
     #Se crea mensaje para agregar el cambio de etiqueta
     mensaje_formateado = ""
+    sender_type_for_zoho = None #importante para decirle a zoho que el visitor es el bot
     
     if tag_name == "respuesta_bot":
         mensaje_formateado = f"[🤖 Bot]: {user_msg}"
+        sender_type_for_zoho = "bot"
     else:
         mensaje_formateado = f"[👤 Usuario]: {user_msg}"
 
@@ -381,7 +386,7 @@ def from_waba():
 
     if conversation_id:
 
-        envio_mensaje = envio_mesaje_a_conversacion(conversation_id,mensaje_formateado)
+        envio_mensaje = envio_mesaje_a_conversacion(conversation_id,mensaje_formateado, sender_type_for_zoho)
 
         # Si se encontró, devuelve el ID
         return jsonify({
