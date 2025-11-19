@@ -286,6 +286,28 @@ def envio_mesaje_a_conversacion(conversation_id,user_msg):
     """
     if user_msg in "btn_si1":
         user_msg = "Si"
+    elif user_msg in "btn_no1":
+        user_msg = "No"
+    elif user_msg in "btn_1":
+        user_msg = "'DDA & Mobile Campaigns' 📱"
+    elif user_msg in "btn_2":
+        user_msg = "'Websites 🌐'"
+    elif user_msg in "btn_3":
+        user_msg = "'Advertising Photography 📸'"
+    elif user_msg in "btn_4":
+        user_msg = "'Content Marketing ✍️'"
+    elif user_msg in "btn_5":
+        user_msg = "'Media Strategy 📈'"
+    elif user_msg in "btn_6":
+        user_msg = "'Digital Marketing 💻'"
+    elif user_msg in "btn_7":
+        user_msg = "'Paid Social Media 📊'"
+    elif user_msg in "btn_8":
+        user_msg = "'E-commerce Strategy 🛒'"
+    elif user_msg in "btn_9":
+        user_msg = "'Display Media 📺'"
+    elif user_msg in "btn_0":
+        user_msg = "'Hablar con un agente 🗣️'"
     else:
         user_msg
 
