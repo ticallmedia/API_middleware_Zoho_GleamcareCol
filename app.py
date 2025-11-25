@@ -347,9 +347,12 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
 
 #________________________________________________________________________________________
 #________________________________________________________________________________________
-#Funciones Principales
+#Funciones Principales 
 #________________________________________________________________________________________
 #________________________________________________________________________________________
+
+#Recepcion de mensajes de Whatsapp - Zoho
+
 @app.route('/api/from-waba', methods=['POST'])
 def from_waba():
     """
@@ -366,11 +369,16 @@ def from_waba():
     #Se crea mensaje para agregar el cambio de etiqueta
     mensaje_formateado = ""
     
+    if mensaje_formateado.startswith("[🤖 Bot]:") or mensaje_formateado.startswith("[👤 Usuario]:"):
+        logging.info(f"from-waba:Mensaje ya formateado detectado, ignorando para evitar bucle.")
+        return {"status": "bucle prevenido"}, 200
+    
     if tag_name == "respuesta_bot":
         mensaje_formateado = f"[🤖 Bot]: {user_msg}"
     else:
         mensaje_formateado = f"[👤 Usuario]: {user_msg}"
 
+    
 
     if not user_id:
         return jsonify({"error":"missing user_id" }), 400
@@ -438,7 +446,51 @@ def from_waba():
             "conversation_resp": conv_resp,
             "visitor_id": zoho_visitor_id
         }), final_status_code
-   
+#________________________________________________________________________________________
+
+#Envío de Mensajes desde Zoho - Whatsapp
+
+@app.route('/api/from-zoho', methods=['POST'])
+def from_zoho():
+    """
+    Este endpoint, recibo las respuestas enviadas al webhooks de zoho, cuando un agente responde
+    """
+    try:
+        #1. recibe y registra los payload completo para depurar
+        zoho_data = request.json
+        logging.info(f"from-zoho: webhook recibida de zoho: {zoho_data}")
+
+        #2.extraer informacion necesarria del payload
+        event_type = zoho_data.get('event')
+        
+        if event_type !="conversation_reply":
+            return {"status":"evento ingnodado"},200
+        
+        message_text = zoho_data.get("data", {}).get("message",{}).get("text")
+        visitor_info = zoho_data.get("data", {}).get("visitor", {})
+        visitor_phone = visitor_info.get("phone")
+
+        if not message_text or not visitor_phone:
+            logging.error(f"Faltan datos en la webhook de zoho: Mensaje = {message_text}, telefono = {visitor_phone}")
+            return {"status": "datos incompletso"}, 400
+        
+        #3. Preparando el payload para enviar a la App A
+        payload_for_app_a = {
+            "phone_number": visitor_phone,
+            "message": message_text
+        }
+
+        #4. Envíar la informacion a la App A, para su posterior envio a whatsapp
+        url = f"{APP_A_URL}/api/envio_whatsapp"
+        logging.info(f"Reenvio mensaje a App A: {payload_for_app_a}")
+        response = requests.post(url, json=payload_for_app_a, timeout=10)
+        response.raise_for_status() # Verificar si hubo errores HTTP
+
+        return {"status": "enviado a App A"}, 200
+
+    except Exception as e:
+        logging.error(f"Error procesando webhook de zoho: {e}")
+        return {"status":"error interno"},500
 #________________________________________________________________________________________
 # -----------------------
 # GET verification endpoint for Zoho webhook subscription
