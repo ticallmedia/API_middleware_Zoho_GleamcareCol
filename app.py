@@ -482,15 +482,27 @@ def from_zoho():
 
         #4. Envíar la informacion a la App A, para su posterior envio a whatsapp
         url = f"{APP_A_URL}/api/envio_whatsapp"
-        logging.info(f"Reenvio mensaje a App A: {payload_for_app_a}")
-        response = requests.post(url, json=payload_for_app_a, timeout=10)
-        response.raise_for_status() # Verificar si hubo errores HTTP
+        #logging.info(f"Reenvio mensaje a App A: {payload_for_app_a}")        
+        response = requests.post(url, json=payload_for_app_a, timeout=20)
+        logging.info(f"Paso 4: LLAMADA EXITOSA. Respuesta recibida de App A: Status={response.status_code}, Body='{response.text}'")
+        
 
+        response.raise_for_status() # Verificar si hubo errores HTTP
+        logging.info("--- FIN DEL PROCESO from_zoho: ÉXITO ---")
         return {"status": "enviado a App A"}, 200
 
+    except requests.exceptions.Timeout:
+        logging.error(f"Error FATAL en Paso 3: TIMEOUT. La App A no respondió a tiempo. Revisa si la App A está funcionando y si la URL '{url}' es correcta.")
+        return {"status": "error de timeout"}, 500
+    
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error FATAL en Paso 3: ERROR DE CONEXIÓN. No se pudo contactar a la App A. Revisa la URL y la red. Error: {e}")
+        return {"status": "error de conexión"}, 500
     except Exception as e:
         logging.error(f"Error procesando webhook de zoho: {e}")
         return {"status":"error interno"},500
+    
+    
 #________________________________________________________________________________________
 # -----------------------
 # GET verification endpoint for Zoho webhook subscription
