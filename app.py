@@ -482,7 +482,7 @@ def from_zoho():
         logging.info(f"--- PRUEBA DEFINITIVA: Payload que App B va a enviar a App A ---> {payload_for_app_a}")
         # --- FIN DE LA PRUEBA DEFINITIVA ---
 
-        url = f"{os.getenv('APP_A_URL')}/api/envio_whatsapp"
+        url = f"{APP_A_URL}/api/envio_whatsapp"
         logging.info(f"Intentando llamar a App A en la URL: {url}")
         
         response = requests.post(url, json=payload_for_app_a, timeout=20)
