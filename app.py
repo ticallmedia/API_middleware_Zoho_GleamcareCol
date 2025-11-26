@@ -452,12 +452,12 @@ def from_waba():
 #________________________________________________________________________________________
 
 #Envío de Mensajes desde Zoho - Whatsapp
-
+"""
 @app.route('/api/from-zoho', methods=['POST'])
 def from_zoho():
-    """
-    Este endpoint, recibo las respuestas enviadas al webhooks de zoho, cuando un agente responde
-    """
+    
+    #Este endpoint, recibo las respuestas enviadas al webhooks de zoho, cuando un agente responde
+    
     try:
         zoho_data = request.json
         logging.info(f"from-zoho: Webhook recibida de Zoho: {zoho_data}")
@@ -487,6 +487,62 @@ def from_zoho():
 
         url = f"{APP_A_URL}/api/envio_whatsapp"
         logging.info(f"Intentando llamar a App A en la URL: {url}")
+        
+        response = requests.post(url, json=payload_for_app_a, timeout=20)
+        
+        logging.info(f"Respuesta recibida de App A: Status={response.status_code}, Body='{response.text}'")
+        response.raise_for_status()
+        
+        return {"status": "enviado a App A"}, 200
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error de CONEXIÓN al llamar a App A: {e}")
+        return {"status": "error de conexión"}, 500
+    except Exception as e:
+        logging.error(f"Error inesperado en from_zoho: {e}")
+        return {"status":"error interno"}, 500
+
+"""
+
+# En tu APP B
+
+@app.route('/api/from-zoho', methods=['POST'])
+def from_zoho():
+    """
+    Este endpoint, recibo las respuestas enviadas al webhooks de zoho, cuando un agente responde
+    """
+    try:
+        zoho_data = request.json
+        logging.info(f"from-zoho: Webhook recibida de Zoho: {zoho_data}")
+
+        event_type = zoho_data.get('event')
+        if event_type != "conversation.operator.replied":
+            logging.warning(f"Evento ignorado porque no es una respuesta de operador: '{event_type}'")
+            return {"status": "evento ignorado"}, 200
+        
+        # --- INICIO DE LA CORRECCIÓN CLAVE ---
+        # Cambiamos "data" por "entity" para que coincida con la estructura real de Zoho
+        
+        main_entity = zoho_data.get("entity", {})
+        
+        message_text = main_entity.get("message",{}).get("text")
+        visitor_info = main_entity.get("visitor", {})
+        
+        # --- FIN DE LA CORRECCIÓN CLAVE ---
+
+        visitor_phone = visitor_info.get("phone")
+
+        if not message_text or not visitor_phone:
+            logging.error(f"Faltan datos en la webhook tras procesar 'entity': Mensaje='{message_text}', Telefono='{visitor_phone}'")
+            return {"status": "datos incompletos"}, 400
+        
+        payload_for_app_a = {
+            "phone_number": visitor_phone,
+            "message": message_text
+        }
+
+        logging.info(f"Payload que App B va a enviar a App A: {payload_for_app_a}")
+        url = f"{APP_A_URL}/api/envio_whatsapp"
         
         response = requests.post(url, json=payload_for_app_a, timeout=20)
         
