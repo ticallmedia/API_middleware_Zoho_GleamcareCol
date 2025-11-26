@@ -45,6 +45,9 @@ api un valor vacio que la Api persivia como un error, se agrega para hacer una e
 
 load_dotenv()
 app = Flask(__name__)
+
+# Configura el logger (Log de eventos para ajustado para utilizarlo en render)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 #________________________________________________________________________________________
 #variables entorno y configuración
 
