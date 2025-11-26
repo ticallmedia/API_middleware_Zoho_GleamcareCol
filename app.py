@@ -456,53 +456,48 @@ def from_zoho():
     Este endpoint, recibo las respuestas enviadas al webhooks de zoho, cuando un agente responde
     """
     try:
-        #1. recibe y registra los payload completo para depurar
         zoho_data = request.json
-        logging.info(f"from-zoho: webhook recibida de zoho: {zoho_data}")
+        logging.info(f"from-zoho: Webhook recibida de Zoho: {zoho_data}")
 
-        #2.extraer informacion necesarria del payload
         event_type = zoho_data.get('event')
+        if event_type != "conversation.operator.replied": # Corregí el nombre del evento por si acaso
+            return {"status": "evento ignorado"}, 200
         
-        if event_type !="conversation_reply":
-            return {"status":"evento ingnodado"},200
-        
-        message_text = zoho_data.get("data", {}).get("message",{}).get("text")
+        message_text = zoho_data.get("data", {}).get("message", {}).get("text")
         visitor_info = zoho_data.get("data", {}).get("visitor", {})
         visitor_phone = visitor_info.get("phone")
 
         if not message_text or not visitor_phone:
-            logging.error(f"Faltan datos en la webhook de zoho: Mensaje = {message_text}, telefono = {visitor_phone}")
-            return {"status": "datos incompletso"}, 400
+            logging.error(f"Faltan datos en la webhook: Mensaje='{message_text}', Telefono='{visitor_phone}'")
+            return {"status": "datos incompletos"}, 400
         
-        #3. Preparando el payload para enviar a la App A
         payload_for_app_a = {
             "phone_number": visitor_phone,
             "message": message_text
         }
 
-        #4. Envíar la informacion a la App A, para su posterior envio a whatsapp
-        url = f"{APP_A_URL}/api/envio_whatsapp"
-        #logging.info(f"Reenvio mensaje a App A: {payload_for_app_a}")        
-        response = requests.post(url, json=payload_for_app_a, timeout=20)
-        logging.info(f"Paso 4: LLAMADA EXITOSA. Respuesta recibida de App A: Status={response.status_code}, Body='{response.text}'")
-        
+        # --- INICIO DE LA PRUEBA DEFINITIVA ---
+        # Imprimimos en el log el payload exacto que vamos a enviar.
+        # Este es el log que resolverá el misterio.
+        logging.info(f"--- PRUEBA DEFINITIVA: Payload que App B va a enviar a App A ---> {payload_for_app_a}")
+        # --- FIN DE LA PRUEBA DEFINITIVA ---
 
-        response.raise_for_status() # Verificar si hubo errores HTTP
-        logging.info("--- FIN DEL PROCESO from_zoho: ÉXITO ---")
+        url = f"{os.getenv('APP_A_URL')}/api/envio_whatsapp"
+        logging.info(f"Intentando llamar a App A en la URL: {url}")
+        
+        response = requests.post(url, json=payload_for_app_a, timeout=20)
+        
+        logging.info(f"Respuesta recibida de App A: Status={response.status_code}, Body='{response.text}'")
+        response.raise_for_status()
+        
         return {"status": "enviado a App A"}, 200
 
-    except requests.exceptions.Timeout:
-        logging.error(f"Error FATAL en Paso 3: TIMEOUT. La App A no respondió a tiempo. Revisa si la App A está funcionando y si la URL '{url}' es correcta.")
-        return {"status": "error de timeout"}, 500
-    
     except requests.exceptions.RequestException as e:
-        logging.error(f"Error FATAL en Paso 3: ERROR DE CONEXIÓN. No se pudo contactar a la App A. Revisa la URL y la red. Error: {e}")
+        logging.error(f"Error de CONEXIÓN al llamar a App A: {e}")
         return {"status": "error de conexión"}, 500
     except Exception as e:
-        logging.error(f"Error procesando webhook de zoho: {e}")
-        return {"status":"error interno"},500
-    
-    
+        logging.error(f"Error inesperado en from_zoho: {e}")
+        return {"status":"error interno"}, 500
 #________________________________________________________________________________________
 # -----------------------
 # GET verification endpoint for Zoho webhook subscription
