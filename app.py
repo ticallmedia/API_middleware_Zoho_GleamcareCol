@@ -380,8 +380,7 @@ def from_waba():
     if mensaje_formateado.startswith("[🤖 Bot]:") or mensaje_formateado.startswith("[👤 Usuario]:"):
         logging.info(f"from-waba:Mensaje ya formateado detectado, ignorando para evitar bucle.")
         return {"status": "bucle prevenido"}, 200
-    
-    if tag_name == "respuesta_bot":
+    elif tag_name == "respuesta_bot":
         mensaje_formateado = f"[🤖 Bot]: {user_msg}"
     else:
         mensaje_formateado = f"[👤 Usuario]: {user_msg}"
