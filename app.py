@@ -39,6 +39,11 @@ Versión: 1.2
 - Se agrega JSONDecodeError, debido a que habia respuestas que llegaban a zoho, y devolvian a la 
 api un valor vacio que la Api persivia como un error, se agrega para hacer una excepcion y que continue el flujo 
 
+Versión: 1.3
+
+- Se configura Flujo de Trabajo en Zoho Sales IQ, para configurar el webhook desde Zoho
+- Se crea funcion from_zoho(): que realiza la captura del webhook y se envia a la App A
+
 """
 #________________________________________________________________________________________
 # Integración WABA (App A)--- Zoho SalesIQ (App B, middleware)
@@ -452,59 +457,6 @@ def from_waba():
 #________________________________________________________________________________________
 
 #Envío de Mensajes desde Zoho - Whatsapp
-"""
-@app.route('/api/from-zoho', methods=['POST'])
-def from_zoho():
-    
-    #Este endpoint, recibo las respuestas enviadas al webhooks de zoho, cuando un agente responde
-    
-    try:
-        zoho_data = request.json
-        logging.info(f"from-zoho: Webhook recibida de Zoho: {zoho_data}")
-
-        event_type = zoho_data.get('event')
-        if event_type != "conversation.operator.replied": # Corregí el nombre del evento por si acaso
-            return {"status": "evento ignorado"}, 200
-        
-        message_text = zoho_data.get("data", {}).get("message", {}).get("text")
-        visitor_info = zoho_data.get("data", {}).get("visitor", {})
-        visitor_phone = visitor_info.get("phone")
-
-        if not message_text or not visitor_phone:
-            logging.error(f"Faltan datos en la webhook: Mensaje='{message_text}', Telefono='{visitor_phone}'")
-            return {"status": "datos incompletos"}, 400
-        
-        payload_for_app_a = {
-            "phone_number": visitor_phone,
-            "message": message_text
-        }
-
-        # --- INICIO DE LA PRUEBA DEFINITIVA ---
-        # Imprimimos en el log el payload exacto que vamos a enviar.
-        # Este es el log que resolverá el misterio.
-        logging.info(f"--- PRUEBA DEFINITIVA: Payload que App B va a enviar a App A ---> {payload_for_app_a}")
-        # --- FIN DE LA PRUEBA DEFINITIVA ---
-
-        url = f"{APP_A_URL}/api/envio_whatsapp"
-        logging.info(f"Intentando llamar a App A en la URL: {url}")
-        
-        response = requests.post(url, json=payload_for_app_a, timeout=20)
-        
-        logging.info(f"Respuesta recibida de App A: Status={response.status_code}, Body='{response.text}'")
-        response.raise_for_status()
-        
-        return {"status": "enviado a App A"}, 200
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Error de CONEXIÓN al llamar a App A: {e}")
-        return {"status": "error de conexión"}, 500
-    except Exception as e:
-        logging.error(f"Error inesperado en from_zoho: {e}")
-        return {"status":"error interno"}, 500
-
-"""
-
-# En tu APP B
 
 @app.route('/api/from-zoho', methods=['POST'])
 def from_zoho():
@@ -520,15 +472,12 @@ def from_zoho():
             logging.warning(f"Evento ignorado porque no es una respuesta de operador: '{event_type}'")
             return {"status": "evento ignorado"}, 200
         
-        # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # Cambiamos "data" por "entity" para que coincida con la estructura real de Zoho
+        # En zoho no existe en el diccionario "data" si no "entity"
         
         main_entity = zoho_data.get("entity", {})
         
         message_text = main_entity.get("message",{}).get("text")
         visitor_info = main_entity.get("visitor", {})
-        
-        # --- FIN DE LA CORRECCIÓN CLAVE ---
 
         visitor_phone = visitor_info.get("phone")
 
