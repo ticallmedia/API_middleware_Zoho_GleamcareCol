@@ -377,10 +377,12 @@ def from_waba():
     #Se crea mensaje para agregar el cambio de etiqueta
     mensaje_formateado = ""
     
+    """
     if mensaje_formateado.startswith("[🤖 Bot]:") or mensaje_formateado.startswith("[👤 Usuario]:"):
         logging.info(f"from-waba:Mensaje ya formateado detectado, ignorando para evitar bucle.")
         return {"status": "bucle prevenido"}, 200
-    elif tag_name == "respuesta_bot":
+    """
+    if tag_name == "respuesta_bot":
         mensaje_formateado = f"[🤖 Bot]: {user_msg}"
     else:
         mensaje_formateado = f"[👤 Usuario]: {user_msg}"
