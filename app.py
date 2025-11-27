@@ -377,12 +377,12 @@ def from_waba():
     #Se crea mensaje para agregar el cambio de etiqueta
     mensaje_formateado = ""
     
-    """
-    if mensaje_formateado.startswith("[🤖 Bot]:") or mensaje_formateado.startswith("[👤 Usuario]:"):
+    
+    #No muestra redundancia en el chat que esta en zoho
+    if mensaje_formateado.strip().startswith("[🤖 Bot]:") or mensaje_formateado.strip().startswith("[👤 Usuario]:"):
         logging.info(f"from-waba:Mensaje ya formateado detectado, ignorando para evitar bucle.")
         return {"status": "bucle prevenido"}, 200
-    """
-    if tag_name == "respuesta_bot":
+    elif tag_name == "respuesta_bot":
         mensaje_formateado = f"[🤖 Bot]: {user_msg}"
     else:
         mensaje_formateado = f"[👤 Usuario]: {user_msg}"
@@ -485,7 +485,8 @@ def from_zoho():
         if not message_text or not visitor_phone:
             logging.error(f"Faltan datos en la webhook tras procesar 'entity': Mensaje='{message_text}', Telefono='{visitor_phone}'")
             return {"status": "datos incompletos"}, 400
-
+        
+        #No muestra redundancia en el chat que esta en el whatsapp
         if message_text.strip().startswith("[🤖 Bot]:") or message_text.strip().startswith("[👤 Usuario]:"):
             logging.info(f"Eco de mensaje de bot detectado. Se ignora para evitar bucle...")
             return {"status":"eco de bot ignorado"}, 200
