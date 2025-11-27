@@ -483,7 +483,11 @@ def from_zoho():
         if not message_text or not visitor_phone:
             logging.error(f"Faltan datos en la webhook tras procesar 'entity': Mensaje='{message_text}', Telefono='{visitor_phone}'")
             return {"status": "datos incompletos"}, 400
-        
+
+        if message_text.strip().startswith("[🤖 Bot]:") or message_text.strip().startswith("[👤 Usuario]:"):
+            logging.info(f"Eco de mensaje de bot detectado. Se ignora para evitar bucle...")
+            return {"status":"eco de bot ignorado"}, 200
+
         payload_for_app_a = {
             "phone_number": visitor_phone,
             "message": message_text
