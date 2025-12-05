@@ -493,7 +493,8 @@ def from_zoho():
 
         payload_for_app_a = {
             "phone_number": visitor_phone,
-            "message": message_text
+            "message": message_text,
+            "sender_role": "human_agent"
         }
 
         logging.info(f"Payload que App B va a enviar a App A: {payload_for_app_a}")
