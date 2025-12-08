@@ -475,12 +475,20 @@ def from_zoho():
         
         # En zoho no existe en el diccionario "data" si no "entity"
         
-        main_entity = zoho_data.get("entity", {})
-        
+        main_entity = zoho_data.get("entity", {})        
         message_text = main_entity.get("message",{}).get("text")
         visitor_info = main_entity.get("visitor", {})
-
         visitor_phone = visitor_info.get("phone")
+
+        #evitar mensaje de eco cuando se responde de Zoho
+
+        sender_name = message_text.get("sender",{}).get("name")
+        
+        #incio logica anti bucle
+        if sender_name == "TicAll-Bot" and message_text.strip().starwith("[🤖 Bot]:"):
+            logging.info("Eco de mensaje de bot detectado. Ignoando para evitar segundo envio...")
+            return {"status": "evento ignodado"} , 200
+
 
         if not message_text or not visitor_phone:
             logging.error(f"Faltan datos en la webhook tras procesar 'entity': Mensaje='{message_text}', Telefono='{visitor_phone}'")
