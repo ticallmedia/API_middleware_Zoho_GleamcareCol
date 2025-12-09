@@ -483,7 +483,7 @@ def from_zoho():
         sender_name = message_text.get("sender",{}).get("name")
         
         #incio logica anti bucle
-        if sender_name == "TicAll-Bot" and message_text.strip().starwith("[🤖 Bot]:"):
+        if sender_name == "TicAll-Bot" and message_text.strip().startswith("[🤖 Bot]:"):
             logging.info("Eco de mensaje de bot detectado. Ignoando para evitar segundo envio...")
             return {"status": "evento ignorado"}, 200
         
