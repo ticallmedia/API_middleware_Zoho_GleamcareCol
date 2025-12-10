@@ -473,6 +473,8 @@ def from_zoho():
             logging.warning(f"Evento ignorado porque no es una respuesta de operador: '{event_type}'")
             return {"status": "evento ignorado"}, 200
         
+
+        """
         # En zoho no existe en el diccionario "data" si no "entity"
         
         main_entity = zoho_data.get("entity", {})
@@ -490,7 +492,27 @@ def from_zoho():
         if message_text.strip().startswith("[🤖 Bot]:") or message_text.strip().startswith("[👤 Usuario]:"):
             logging.info(f"Eco de mensaje de bot detectado. Se ignora para evitar bucle...")
             return {"status":"eco de bot ignorado"}, 200
+        """
+        main_entity = zoho_data.get("entity", {})
+        message_info = main_entity.get("message", {}) # Obtenemos el diccionario 'message' completo
 
+        # Extraemos los datos del diccionario 'message_info'
+        message_text = message_info.get("text")
+        sender_name = message_info.get("sender", {}).get("name")
+
+        # Inicio lógica anti-bucle
+        # Se añade 'message_text and' para evitar errores si el mensaje está vacío
+        if sender_name == "TicAll-Bot" and message_text and message_text.strip().startswith("[🤖 Bot]:"):
+            logging.info("Eco de mensaje de bot detectado. Ignorando para evitar segundo envío.")
+            return {"status": "eco de bot ignorado"}, 200
+        
+        visitor_info = main_entity.get("visitor", {})
+        visitor_phone = visitor_info.get("phone")
+
+
+
+        
+            
         payload_for_app_a = {
             "phone_number": visitor_phone,
             "message": message_text,
