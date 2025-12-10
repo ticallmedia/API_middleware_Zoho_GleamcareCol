@@ -506,12 +506,21 @@ def from_zoho():
             logging.info("Eco de mensaje de bot detectado. Ignorando para evitar segundo envío.")
             return {"status": "eco de bot ignorado"}, 200
         
+        #No muestra redundancia en el chat que esta en el whatsapp
+        if message_text.strip().startswith("[🤖 Bot]:") or message_text.strip().startswith("[👤 Usuario]:"):
+            logging.info(f"Eco de mensaje de bot detectado. Se ignora para evitar bucle...")
+            return {"status":"eco de bot ignorado"}, 200
+
+        
         visitor_info = main_entity.get("visitor", {})
         visitor_phone = visitor_info.get("phone")
 
+        if not message_text or not visitor_phone:
+            logging.error(f"Faltan datos en la webhook tras procesar 'entity': Mensaje='{message_text}', Telefono='{visitor_phone}'")
+            return {"status": "datos incompletos"}, 400
 
 
-        
+
             
         payload_for_app_a = {
             "phone_number": visitor_phone,
