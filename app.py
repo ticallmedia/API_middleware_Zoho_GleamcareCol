@@ -402,7 +402,7 @@ def from_waba():
         # Si se encontró, devuelve el ID
         return jsonify({
             "status": "Mensaje enviado",
-            "message": "Mensaje añadido a la conversaión existente...",
+            "message": "Mensaje agrego a la conversacion existente...",
             "conversation_id": conversation_id,
             "send_response": envio_mensaje
         }), 200
