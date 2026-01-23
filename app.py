@@ -370,6 +370,7 @@ def from_waba():
     logging.info(f"/api/from-waba - mensaje recibido: {data}")
 
     user_id = data.get("user_id")
+    user_name = data.get("name")
     user_msg = data.get("message")
     tag_name = data.get("tag", "soporte_urgente")
     tag_color = data.get("tag_color") or "#FF5733"
@@ -416,7 +417,7 @@ def from_waba():
 
         #Crear o actualizar al visitante en zoho
         visitor_id_local = f"whatsapp_{user_id}"
-        nombre = f"whatsapp {user_id}"
+        nombre = user_name #f"whatsapp {user_id}"
         telefono = user_id
 
         #Crear o actualizar visitante (importante captura el tag)
@@ -446,7 +447,12 @@ def from_waba():
         #Crear conversacion con el primer mensaje
 
         if mensaje_formateado:
-            conv_resp = create_conversation_if_configured(zoho_visitor_id, nombre, telefono, mensaje_formateado)
+            conv_resp = create_conversation_if_configured(
+                zoho_visitor_id, 
+                nombre, 
+                telefono, 
+                mensaje_formateado
+                )
         
         return jsonify({
             "status": "ok",
