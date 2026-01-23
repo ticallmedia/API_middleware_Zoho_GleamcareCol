@@ -170,7 +170,7 @@ def get_access_token():
 #Funciones Auxiliares
 #________________________________________________________________________________________
 #________________________________________________________________________________________
-def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None, apellido=None,  email=None, custom_fields=None, tag_ids=None):
+def create_or_update_visitor(visitor_id, nombre_completo, nombre, apellido,  email, telefono,  custom_fields=None, tag_ids=None):
     """
     Crea o actualiza visitante, devuelve respuesta de zoho, importante envia el tags
     """
@@ -431,10 +431,17 @@ def from_waba():
 
         nombre_completo = f"{nombre} {apellido}".strip()
         if not nombre:
+            nombre = f"whatsapp {user_id}"
             nombre_completo = f"whatsapp {user_id}"
 
+        if not apellido:
+            apellido = f"whatsapp {user_id}"
+
+        if not email:
+            email = f"email@email.com"
+
         #Crear o actualizar visitante (importante captura el tag)
-        visitor_resp, status = create_or_update_visitor(visitor_id_local, nombre_completo, telefono, nombre, apellido, email, "whatsapp", tag_name)
+        visitor_resp, status = create_or_update_visitor(visitor_id_local, nombre_completo, nombre, apellido, email, telefono, "whatsapp", tag_name)
         
         # Extraer visitor_id real de Zoho (si lo genera)
         zoho_visitor_id = None
