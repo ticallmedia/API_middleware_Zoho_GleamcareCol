@@ -170,7 +170,7 @@ def get_access_token():
 #Funciones Auxiliares
 #________________________________________________________________________________________
 #________________________________________________________________________________________
-def create_or_update_visitor(visitor_id, nombre_completo, nombre, apellido,telefono, custom_fields=None, tag_ids=None):
+def create_or_update_visitor(visitor_id, nombre_completo, nombre, apellido, email, telefono, custom_fields=None, tag_ids=None):
     """
     Crea o actualiza visitante, devuelve respuesta de zoho, importante envia el tags
     """
@@ -189,6 +189,7 @@ def create_or_update_visitor(visitor_id, nombre_completo, nombre, apellido,telef
         "name": nombre_completo,
         "first_name": nombre,
         "last_name": apellido,
+        "email": email,
         "contactnumber": telefono,
         "custom_fields": custom_fields or {"canal": "whatsapp"},
         "tag_ids": "" #[] #se incluye porque es obligatorio asi este vacio
@@ -216,14 +217,14 @@ def create_or_update_visitor(visitor_id, nombre_completo, nombre, apellido,telef
 
 
 
-def create_conversation_if_configured(visitor_user_id, nombre_completo, nombre, apellido, telefono,question):
+def create_conversation_if_configured(visitor_user_id, nombre_completo, nombre, apellido, email, telefono,question):
     """
     Crea conversaciones en SalesIQ
     """
     
     url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
     payload = {
-        "visitor": {"user_id": visitor_user_id, "name": nombre_completo, "first_name": nombre, "last_name": apellido, "phone": telefono},
+        "visitor": {"user_id": visitor_user_id, "name": nombre_completo, "first_name": nombre, "last_name": apellido, "email": email, "phone": telefono},
         "app_id": SALESIQ_APP_ID,
         "department_id": SALESIQ_DEPARTMENT_ID,
         "question": question
@@ -375,6 +376,7 @@ def from_waba():
     #user_name = data.get("name")#nuevo
     user_first_name = data.get("first_name")#nuevo
     user_last_name = data.get("last_name")#nuevo
+    user_email = data.get("email")#nuevo
     user_msg = data.get("message")
     tag_name = data.get("tag", "soporte_urgente")
     tag_color = data.get("tag_color") or "#FF5733"
@@ -425,10 +427,11 @@ def from_waba():
         nombre = user_first_name #nuevo
         apellido = user_last_name #nuevo
         nombre_completo = nombre + ' ' + apellido
+        email = user_email
         telefono = user_id
 
         #Crear o actualizar visitante (importante captura el tag)
-        visitor_resp, status = create_or_update_visitor(visitor_id_local, nombre_completo, nombre, apellido, telefono, "whatsapp", tag_name)
+        visitor_resp, status = create_or_update_visitor(visitor_id_local, nombre_completo, nombre, apellido, telefono, email, "whatsapp", tag_name)
         
         # Extraer visitor_id real de Zoho (si lo genera)
         zoho_visitor_id = None
@@ -458,7 +461,8 @@ def from_waba():
                 zoho_visitor_id, 
                 nombre_completo,
                 nombre,
-                apellido, 
+                apellido,
+                email,
                 telefono, 
                 mensaje_formateado
                 )
