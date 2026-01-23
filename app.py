@@ -426,9 +426,12 @@ def from_waba():
         #nombre = user_name #f"whatsapp {user_id}"
         nombre = user_first_name #nuevo
         apellido = user_last_name #nuevo
-        nombre_completo = nombre + ' ' + apellido
         email = user_email
         telefono = user_id
+
+        nombre_completo = f"{nombre} {apellido}".strip()
+        if not nombre_completo:
+            nombre_completo = f"whatsapp {user_id}"
 
         #Crear o actualizar visitante (importante captura el tag)
         visitor_resp, status = create_or_update_visitor(visitor_id_local, nombre_completo, nombre, apellido, telefono, email, "whatsapp", tag_name)
