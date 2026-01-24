@@ -170,7 +170,7 @@ def get_access_token():
 #Funciones Auxiliares
 #________________________________________________________________________________________
 #________________________________________________________________________________________
-def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= None, apellido= None,  email= None, custom_fields=None, tag_ids=None):
+def create_or_update_visitor(visitor_id, nombre_completo, nombre, apellido,  email, telefono,  custom_fields=None, tag_ids=None):
     """
     Crea o actualiza visitante, devuelve respuesta de zoho, importante envia el tags
     """
@@ -184,21 +184,17 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
                "Content-Type": "application/json"}
 
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
-
     payload = {
         "id": str(visitor_id),
         "name": nombre_completo,
+        "first_name": nombre,
+        "last_name": apellido,
+        "email": email,
         "contactnumber": telefono,
         "custom_fields": custom_fields or {"canal": "whatsapp"},
         "tag_ids": "" #[] #se incluye porque es obligatorio asi este vacio
+        
     }
-    
-    if nombre:
-        payload["first_name"] = nombre
-    if apellido:    
-        payload["last_name"] = apellido
-    if email:
-        payload["email"] = email    
 
     #incluir tags si existen
     if tag_ids:
@@ -207,16 +203,8 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
 
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=10)
-        logging.info(f" Respuesta de zoho al actualizar visitante: status {r.status_code} resp={r.text}")
-        r.raise_for_status() #lanza excepcion para errores
-        return r.json(), r.status_code
-    
-    except requests.exceptions.HTTPError as e:
-        return {"error": "http_error", "details": e.response.text}, e.response.status_code
-    except Exception as e:
-        return {"error": str(e)}, 500
-    
-    """
+        logging.info(f" : status {r.status_code} resp={r.text}")
+
         try:
             return r.json(), r.status_code
         except Exception as e:
@@ -226,7 +214,7 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
     except Exception as e:
         logging.error(f"create_or_update_visitor: exception -> {e}")
         return {"error": str(e)}, 500
-    """
+
 
 
 def create_conversation_if_configured(visitor_user_id, nombre_completo, nombre, apellido, email, telefono,question):
@@ -379,46 +367,24 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
 @app.route('/api/from-waba', methods=['POST'])
 def from_waba():
     """
-    Función Principal:
-    1. Siempre crea o actualiza los datos del visitante
-    2. Registra el mensaje en una conversacion existente o nueva
+    Función Principal de envio de mensajes a Zoho
     """
     data = request.json or {}
     logging.info(f"/api/from-waba - mensaje recibido: {data}")
 
-    #--Paso 1: estraccion y preparacion de datos--
-
-    user_id = data.get("user_id") #telefono
+    user_id = data.get("user_id")
+    #user_name = data.get("name")#nuevo
+    user_first_name = data.get("first_name")#nuevo
+    user_last_name = data.get("last_name")#nuevo
+    user_email = data.get("email")#nuevo
     user_msg = data.get("message")
     tag_name = data.get("tag", "soporte_urgente")
     tag_color = data.get("tag_color") or "#FF5733"
 
-    #datos de contacto pueden ser None al principio
-    user_first_name = data.get("first_name")#nuevo
-    user_last_name = data.get("last_name")#nuevo
-    user_email = data.get("email")#nuevo
-        
-    if not user_id:
-        return jsonify({"error":"missing user_id" }), 400
-    
-
-    #--Paso 2: Crear o Actualizar Siempre al visitante--
-
-    #Crear o actualizar al visitante en zoho
-    visitor_id_local = f"whatsapp_{user_id}"
-
-    #se prepara los datos del visitantes con valores por defecto si no vienen
-    nombre = user_first_name or f"whatsapp {user_id}"
-    apellido = user_last_name or ""
-    email = user_email or f"{user_id}@email.com"
-    nombre_completo = f"{nombre} {apellido}".strip()
-    telefono = user_id
-
-    """
     #Se crea mensaje para agregar el cambio de etiqueta
     mensaje_formateado = ""
     
-   
+    
     #No muestra redundancia en el chat que esta en zoho
     if mensaje_formateado.strip().startswith("[🤖 Bot]:") or mensaje_formateado.strip().startswith("[👤 Usuario]:"):
         logging.info(f"from-waba:Mensaje ya formateado detectado, ignorando para evitar bucle.")
@@ -427,51 +393,13 @@ def from_waba():
         mensaje_formateado = f"[🤖 Bot]: {user_msg}"
     else:
         mensaje_formateado = f"[👤 Usuario]: {user_msg}"
-    """
+
     
-    #Crear o actualizar visitante (importante captura el tag)
-    visitor_resp, status = create_or_update_visitor(
-        visitor_id_local, nombre_completo, nombre, apellido, email, telefono, "whatsapp", tag_name
-        )
-        
-    if status >= 400:
-        logging.warning(f"No se pudo crear/actualizar el vistitante, pero se continuara. Detalle: {visitor_resp}")
-        #no se devuelve un error para que el mensaje aun se pueda registrar
 
-    # Extraer visitor_id real de Zoho (si lo genera)
-    zoho_visitor_id = None
-
-    # Obtenemos el ID real de Zoho
-    #No fue posible cambiar esta estructura, se debe evaluar si se puede hacer mas secilla
-    if isinstance(visitor_resp, dict):
-        zoho_visitor_id = (
-            visitor_resp.get("data", [{}])[0].get("id")
-            if isinstance(visitor_resp.get("data"), list)
-            else visitor_resp.get("data", {}).get("id")
-        ) or visitor_id_local
+    if not user_id:
+        return jsonify({"error":"missing user_id" }), 400
     
-    if not zoho_visitor_id:
-        logging.error(f"No se puedo crear o encontrar el visitante en zoho. Abortando...")
-
-        return jsonify({
-            "status": "error",
-            "message": "Fallo al crear el visitante en zoho",
-            "details": visitor_resp
-            }),500
-
-    #--Paso 3: Manejar el mensaje y la conversacion--
-
-    if not user_msg:
-        #si no hay mensaje, es solo una actualizacion de datos, termina
-        logging.info(f"Datos del visitante {user_id} actualizados. No hay mensajes para procesar.")
-        return jsonify({"status":"datos de contacto actualizados"}), 200
-    
-    #mensaje para registrarlo
-    mensaje_formateado = f"[👤 Usuario]: {user_msg}"
-    if tag_name == "respuesta_bot":
-        mensaje_formateado = f"[🤖 Bot]: {user_msg}"
-
-    #Busca si existe una conversaicon abierta
+    #1. Busca si existe una conversaicon abierta
     conversation_id = busca_conversacion(user_id)
 
     if conversation_id:
@@ -486,15 +414,76 @@ def from_waba():
             "send_response": envio_mensaje
         }), 200
     else:
-        # Si no existe, creamos una nueva conversación
-        conv_resp = create_conversation_if_configured(
-            zoho_visitor_id, nombre_completo, nombre, apellido, email, user_id, mensaje_formateado
-        )
+        logging.info(f"No se encontro conversación para el {user_id}. Creando nuevo visitante y conversación...")
+
+        #datos del visitante
+        visitor_resp = None
+        conv_resp = None
+        final_status_code = 201 #201 creado
+
+        #Crear o actualizar al visitante en zoho
+        visitor_id_local = f"whatsapp_{user_id}"
+        #nombre = user_name #f"whatsapp {user_id}"
+        nombre = user_first_name #nuevo
+        apellido = user_last_name #nuevo
+        email = user_email
+        telefono = user_id
+
+        nombre_completo = f"{nombre} {apellido}".strip()
+        if not nombre:
+            nombre = f"whatsapp {user_id}"
+            nombre_completo = f"whatsapp {user_id}"
+
+        if not apellido:
+            apellido = f"whatsapp {user_id}"
+
+        if not email:
+            email = f"email@email.com"
+
+        #Crear o actualizar visitante (importante captura el tag)
+        visitor_resp, status = create_or_update_visitor(visitor_id_local, nombre_completo, nombre, apellido, email, telefono, "whatsapp", tag_name)
+        
+        # Extraer visitor_id real de Zoho (si lo genera)
+        zoho_visitor_id = None
+
+
+        #No fue posible cambiar esta estructura, se debe evaluar si se puede hacer mas secilla
+        if isinstance(visitor_resp, dict):
+            zoho_visitor_id = (
+                visitor_resp.get("data", [{}])[0].get("id")
+                if isinstance(visitor_resp.get("data"), list)
+                else visitor_resp.get("data", {}).get("id")
+            ) or visitor_id_local
+        
+        if not zoho_visitor_id:
+            logging.error(f"No se puedo crear o encontrar el visitante en zoho. Abortando...")
+
+            return jsonify({
+                "status": "error",
+                "message": "Fallo al crear el visitante en zoho",
+                "details": visitor_resp
+                }),500
+
+        #Crear conversacion con el primer mensaje
+
+        if mensaje_formateado:
+            conv_resp = create_conversation_if_configured(
+                zoho_visitor_id, 
+                nombre_completo,
+                nombre,
+                apellido,
+                email,
+                telefono, 
+                mensaje_formateado
+                )
         
         return jsonify({
-            "status": "Visitante actualizado y nueva conversacion creada",
-            "conversation_resp": conv_resp
-        }), 201
+            "status": "ok",
+            "visitor_resp": visitor_resp,
+            "visitor_status_code": status,
+            "conversation_resp": conv_resp,
+            "visitor_id": zoho_visitor_id
+        }), final_status_code
 #________________________________________________________________________________________
 
 #Envío de Mensajes desde Zoho - Whatsapp
