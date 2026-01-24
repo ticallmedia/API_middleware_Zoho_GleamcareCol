@@ -188,8 +188,7 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
     payload = {
         "id": str(visitor_id),
         "name": nombre_completo,
-        "contactnumber": telefono,
-        "custom_fields": custom_fields or {"canal": "whatsapp"}
+        "contactnumber": str(telefono)
     }
     
     if nombre:
@@ -197,13 +196,16 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
     if apellido:    
         payload["last_name"] = apellido
     if email:
-        payload["email"] = email    
+        payload["email"] = email
+    if custom_fields:
+        payload["custom_fields"] = custom_fields
+        #"custom_fields": custom_fields or {"canal": "whatsapp"} 
 
     #incluir tags si existen
     if tag_ids:
         payload["tag_ids"] = tag_ids
-    else:
-        payload["tag_ids"] = "" #[] #se incluye porque es obligatorio asi este vacio
+    #else:
+     #   payload["tag_ids"] = "" #[] #se incluye porque es obligatorio asi este vacio
     logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
 
     try:
@@ -413,7 +415,6 @@ def from_waba():
     apellido = user_last_name or ""
     email = user_email or f"{user_id}@email.com"
     nombre_completo = f"{nombre} {apellido}".strip()
-    telefono = user_id
 
     """
     #Se crea mensaje para agregar el cambio de etiqueta
@@ -432,11 +433,19 @@ def from_waba():
     
     #Crear o actualizar visitante (importante captura el tag)
     visitor_resp, status = create_or_update_visitor(
-        visitor_id_local, nombre_completo, nombre, apellido, email, telefono, "whatsapp", tag_name
+        visitor_id = visitor_id_local, 
+        nombre_completo = nombre_completo, 
+        telefono = user_id, 
+        nombre = user_first_name, 
+        apellido = user_last_name, 
+        email = user_email, 
+        custom_fields={"canal": "whatsapp"},
+        tags=[tag_name] 
         )
         
     if status >= 400:
         logging.warning(f"No se pudo crear/actualizar el vistitante, pero se continuara. Detalle: {visitor_resp}")
+        return jsonify({"status": "error", "message": "Fallo al sincronizar con Zoho", "details": visitor_resp}), 500
         #no se devuelve un error para que el mensaje aun se pueda registrar
 
     # Extraer visitor_id real de Zoho (si lo genera)
