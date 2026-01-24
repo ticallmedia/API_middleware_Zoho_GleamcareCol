@@ -170,23 +170,18 @@ def get_access_token():
 #Funciones Auxiliares
 #________________________________________________________________________________________
 #________________________________________________________________________________________
+def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= None, apellido= None,  email= None, custom_fields=None, tag_ids=None):
+    """
+    Crea o actualiza visitante, devuelve respuesta de zoho, importante envia el tags
+    """
 
-def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None, apellido=None, email=None, custom_fields=None, tag_ids=None):
-    """
-    Crea o actualiza visitante en Zoho IQ
-    
-    IMPORTANTE: Zoho SalesIQ v2 NO acepta tag_ids en el endpoint de visitantes.
-    Los tags se deben asignar posteriormente a través de conversaciones.
-    """
     access_token = get_access_token()
     if not access_token:
         logging.error("create_or_update_visitor: no se obtuvo un access_token valido...")
-        return {"error": "no_access_token"}, 401
+        return {"error":"no_access_token"},401
     
-    headers = {
-        "Authorization": f"Zoho-oauthtoken {access_token}", 
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}", 
+               "Content-Type": "application/json"}
 
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
 
@@ -196,7 +191,6 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
         "contactnumber": str(telefono)
     }
     
-    # Solo agregar campos con valores válidos
     if nombre:
         payload["first_name"] = nombre
     if apellido:    
@@ -205,9 +199,15 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
         payload["email"] = email
     if custom_fields:
         payload["custom_fields"] = custom_fields
-
-    # ⭐ CRÍTICO: NO incluir tag_ids aquí - Zoho lo rechaza
-    # Los tags se asignan a través de conversaciones, no de visitantes
+        #"custom_fields": custom_fields or {"canal": "whatsapp"} 
+    if tag_ids:
+        # Si viene como string, convertir a array
+        if isinstance(tag_ids, str):
+            payload["tag_ids"] = [tag_ids]
+        elif isinstance(tag_ids, list):
+            payload["tag_ids"] = tag_ids
+        else:
+            logging.warning(f"tag_ids tiene formato inválido: {type(tag_ids)}")
     
     logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
 
@@ -218,12 +218,46 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
         if r.status_code in [200, 201]:
             return r.json(), r.status_code
         else:
+            # No lanzar excepción, solo loggear y retornar error
             logging.error(f"Error Zoho: {r.status_code} - {r.text}")
             return {"error": "zoho_error", "details": r.text}, r.status_code
     
     except requests.exceptions.RequestException as e:
         logging.error(f"Excepción en create_or_update_visitor: {e}")
         return {"error": str(e)}, 500
+
+    """    
+    #incluir tags si existen
+    if tag_ids:
+        payload["tag_ids"] = tag_ids
+    #else:
+     #   payload["tag_ids"] = "" #[] #se incluye porque es obligatorio asi este vacio
+    logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
+
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=10)
+        logging.info(f" Respuesta de zoho al actualizar visitante: status {r.status_code} resp={r.text}")
+        r.raise_for_status() #lanza excepcion para errores
+        return r.json(), r.status_code
+    
+    except requests.exceptions.HTTPError as e:
+        return {"error": "http_error", "details": e.response.text}, e.response.status_code
+    except Exception as e:
+        return {"error": str(e)}, 500
+    """    
+    
+
+    """
+        try:
+            return r.json(), r.status_code
+        except Exception as e:
+            logging.info(f"create_or_update_visitor: invalid response: {e}")
+            return {"error": "invalid_response", "details": str(e)}, r.status_code
+
+    except Exception as e:
+        logging.error(f"create_or_update_visitor: exception -> {e}")
+        return {"error": str(e)}, 500
+    """
 
 
 def create_conversation_if_configured(visitor_user_id, nombre_completo, nombre, apellido, email, telefono,question):
@@ -369,32 +403,6 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
 #________________________________________________________________________________________
 #Funciones Principales 
 #________________________________________________________________________________________
-def asignar_tag_a_conversacion(conversation_id, tag_id):
-    """
-    Asigna un tag a una conversación existente en Zoho
-    """
-    access_token = get_access_token()
-    if not access_token:
-        return {"error": "no_access_token"}, 401
-    
-    headers = {
-        "Authorization": f"Zoho-oauthtoken {access_token}",
-        "Content-Type": "application/json"
-    }
-    
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversation_id}/tags"
-    
-    payload = {
-        "tag_ids": [tag_id] if isinstance(tag_id, str) else tag_id
-    }
-    
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=10)
-        logging.info(f"Tag asignado: {r.status_code} - {r.text}")
-        return r.json() if r.text else {"success": True}, r.status_code
-    except Exception as e:
-        logging.error(f"Error asignando tag: {e}")
-        return {"error": str(e)}, 500
 #________________________________________________________________________________________
 
 #Recepcion de mensajes de Whatsapp - Zoho
@@ -402,46 +410,78 @@ def asignar_tag_a_conversacion(conversation_id, tag_id):
 @app.route('/api/from-waba', methods=['POST'])
 def from_waba():
     """
-    Función Principal
+    Función Principal:
+    1. Siempre crea o actualiza los datos del visitante
+    2. Registra el mensaje en una conversacion existente o nueva
     """
     data = request.json or {}
     logging.info(f"/api/from-waba - mensaje recibido: {data}")
 
-    user_id = data.get("user_id")
+    #--Paso 1: estraccion y preparacion de datos--
+
+    user_id = data.get("user_id") #telefono
     user_msg = data.get("message")
-    tag_name = data.get("tag", "soporte_urgente")  # Guardar para usar después
+    tag_name = data.get("tag", "soporte_urgente")
     tag_color = data.get("tag_color") or "#FF5733"
 
-    user_first_name = data.get("first_name")
-    user_last_name = data.get("last_name")
-    user_email = data.get("email")
+    #datos de contacto pueden ser None al principio
+    user_first_name = data.get("first_name","").strip() or None
+    user_last_name = data.get("last_name","").strip() or None
+    user_email = data.get("email","").strip() or None
         
     if not user_id:
-        return jsonify({"error": "missing user_id"}), 400
+        return jsonify({"error":"missing user_id" }), 400
+    
 
+    #--Paso 2: Crear o Actualizar Siempre al visitante--
+
+    #Crear o actualizar al visitante en zoho
     visitor_id_local = f"whatsapp_{user_id}"
 
+    #se prepara los datos del visitantes con valores por defecto si no vienen
     nombre = user_first_name or f"whatsapp {user_id}"
     apellido = user_last_name or ""
     email = user_email or f"{user_id}@email.com"
     nombre_completo = f"{nombre} {apellido}".strip()
 
-    # ⭐ NO pasar tag_ids aquí
+    """
+    #Se crea mensaje para agregar el cambio de etiqueta
+    mensaje_formateado = ""
+    
+   
+    #No muestra redundancia en el chat que esta en zoho
+    if mensaje_formateado.strip().startswith("[🤖 Bot]:") or mensaje_formateado.strip().startswith("[👤 Usuario]:"):
+        logging.info(f"from-waba:Mensaje ya formateado detectado, ignorando para evitar bucle.")
+        return {"status": "bucle prevenido"}, 200
+    elif tag_name == "respuesta_bot":
+        mensaje_formateado = f"[🤖 Bot]: {user_msg}"
+    else:
+        mensaje_formateado = f"[👤 Usuario]: {user_msg}"
+    """
+    
+    #Crear o actualizar visitante (importante captura el tag)
     visitor_resp, status = create_or_update_visitor(
-        visitor_id=visitor_id_local, 
-        nombre_completo=nombre_completo, 
-        telefono=user_id, 
-        nombre=user_first_name, 
-        apellido=user_last_name, 
-        email=user_email, 
-        custom_fields={"canal": "whatsapp"}
-        # tag_ids=tag_name  ← ELIMINAR ESTO
-    )
+        visitor_id = visitor_id_local, 
+        nombre_completo = nombre_completo, 
+        telefono = user_id, 
+        nombre = user_first_name, 
+        apellido = user_last_name, 
+        email = user_email, 
+        custom_fields={"canal": "whatsapp"},
+        tag_ids= tag_name
+        )
         
     if status >= 400:
-        logging.warning(f"No se pudo crear/actualizar el visitante. Detalle: {visitor_resp}")
+        logging.warning(f"No se pudo crear/actualizar el vistitante, pero se continuara. Detalle: {visitor_resp}")
+        #return jsonify({"status": "error", "message": "Fallo al sincronizar con Zoho", "details": visitor_resp}), 500
+        
+        #no se devuelve un error para que el mensaje aun se pueda registrar
 
+    # Extraer visitor_id real de Zoho (si lo genera)
     zoho_visitor_id = None
+
+    # Obtenemos el ID real de Zoho
+    #No fue posible cambiar esta estructura, se debe evaluar si se puede hacer mas secilla
     if isinstance(visitor_resp, dict):
         zoho_visitor_id = (
             visitor_resp.get("data", [{}])[0].get("id")
@@ -450,51 +490,48 @@ def from_waba():
         ) or visitor_id_local
     
     if not zoho_visitor_id:
-        logging.error(f"No se pudo crear o encontrar el visitante en Zoho")
+        logging.error(f"No se puedo crear o encontrar el visitante en zoho. Abortando...")
+
         return jsonify({
             "status": "error",
-            "message": "Fallo al crear el visitante en Zoho",
+            "message": "Fallo al crear el visitante en zoho",
             "details": visitor_resp
-        }), 500
+            }),500
 
-    # Si no hay mensaje, solo actualización de datos
+    #--Paso 3: Manejar el mensaje y la conversacion--
+
     if not user_msg:
-        logging.info(f"✅ Datos del visitante {user_id} actualizados. No hay mensajes.")
-        return jsonify({
-            "status": "datos_actualizados",
-            "visitor_id": zoho_visitor_id
-        }), 200
+        #si no hay mensaje, es solo una actualizacion de datos, termina
+        logging.info(f"Datos del visitante {user_id} actualizados. No hay mensajes para procesar.")
+        return jsonify({"status":"datos de contacto actualizados"}), 200
     
+    #mensaje para registrarlo
     mensaje_formateado = f"[👤 Usuario]: {user_msg}"
     if tag_name == "respuesta_bot":
         mensaje_formateado = f"[🤖 Bot]: {user_msg}"
 
+    #Busca si existe una conversaicon abierta
     conversation_id = busca_conversacion(user_id)
 
     if conversation_id:
-        # ⭐ NUEVO: Asignar tag a conversación existente
-        if tag_name:
-            asignar_tag_a_conversacion(conversation_id, tag_name)
-        
-        envio_mensaje = envio_mesaje_a_conversacion(conversation_id, mensaje_formateado)
+
+        envio_mensaje = envio_mesaje_a_conversacion(conversation_id,mensaje_formateado)
+
+        # Si se encontró, devuelve el ID
         return jsonify({
-            "status": "mensaje_enviado",
-            "conversation_id": conversation_id
+            "status": "Mensaje enviado",
+            "message": "Mensaje agrego a la conversacion existente...",
+            "conversation_id": conversation_id,
+            "send_response": envio_mensaje
         }), 200
     else:
-        # Crear nueva conversación
+        # Si no existe, creamos una nueva conversación
         conv_resp = create_conversation_if_configured(
             zoho_visitor_id, nombre_completo, nombre, apellido, email, user_id, mensaje_formateado
         )
         
-        # ⭐ NUEVO: Asignar tag a conversación recién creada
-        if conv_resp and isinstance(conv_resp, dict):
-            new_conv_id = conv_resp.get("data", {}).get("id")
-            if new_conv_id and tag_name:
-                asignar_tag_a_conversacion(new_conv_id, tag_name)
-        
         return jsonify({
-            "status": "conversacion_creada",
+            "status": "Visitante actualizado y nueva conversacion creada",
             "conversation_resp": conv_resp
         }), 201
 #________________________________________________________________________________________
