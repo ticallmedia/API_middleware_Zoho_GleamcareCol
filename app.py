@@ -200,7 +200,33 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
     if custom_fields:
         payload["custom_fields"] = custom_fields
         #"custom_fields": custom_fields or {"canal": "whatsapp"} 
+    if tag_ids:
+        # Si viene como string, convertir a array
+        if isinstance(tag_ids, str):
+            payload["tag_ids"] = [tag_ids]
+        elif isinstance(tag_ids, list):
+            payload["tag_ids"] = tag_ids
+        else:
+            logging.warning(f"tag_ids tiene formato inválido: {type(tag_ids)}")
+    
+    logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
 
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=10)
+        logging.info(f"Respuesta de zoho al actualizar visitante: status {r.status_code} resp={r.text}")
+        
+        if r.status_code in [200, 201]:
+            return r.json(), r.status_code
+        else:
+            # No lanzar excepción, solo loggear y retornar error
+            logging.error(f"Error Zoho: {r.status_code} - {r.text}")
+            return {"error": "zoho_error", "details": r.text}, r.status_code
+    
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Excepción en create_or_update_visitor: {e}")
+        return {"error": str(e)}, 500
+
+    """    
     #incluir tags si existen
     if tag_ids:
         payload["tag_ids"] = tag_ids
@@ -218,7 +244,9 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
         return {"error": "http_error", "details": e.response.text}, e.response.status_code
     except Exception as e:
         return {"error": str(e)}, 500
+    """    
     
+
     """
         try:
             return r.json(), r.status_code
@@ -397,9 +425,9 @@ def from_waba():
     tag_color = data.get("tag_color") or "#FF5733"
 
     #datos de contacto pueden ser None al principio
-    user_first_name = data.get("first_name")#nuevo
-    user_last_name = data.get("last_name")#nuevo
-    user_email = data.get("email")#nuevo
+    user_first_name = data.get("first_name","").strip() or None
+    user_last_name = data.get("last_name","").strip() or None
+    user_email = data.get("email","").strip() or None
         
     if not user_id:
         return jsonify({"error":"missing user_id" }), 400
