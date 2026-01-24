@@ -440,7 +440,7 @@ def from_waba():
         apellido = user_last_name, 
         email = user_email, 
         custom_fields={"canal": "whatsapp"},
-        tag_ids=[tag_name] 
+        tag_ids= tag_name
         )
         
     if status >= 400:
