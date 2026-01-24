@@ -189,8 +189,7 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
         "id": str(visitor_id),
         "name": nombre_completo,
         "contactnumber": telefono,
-        "custom_fields": custom_fields or {"canal": "whatsapp"},
-        "tag_ids": "" #[] #se incluye porque es obligatorio asi este vacio
+        "custom_fields": custom_fields or {"canal": "whatsapp"}
     }
     
     if nombre:
@@ -203,6 +202,8 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
     #incluir tags si existen
     if tag_ids:
         payload["tag_ids"] = tag_ids
+    else:
+        payload["tag_ids"] = "" #[] #se incluye porque es obligatorio asi este vacio
     logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
 
     try:
