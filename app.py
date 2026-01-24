@@ -445,7 +445,8 @@ def from_waba():
         
     if status >= 400:
         logging.warning(f"No se pudo crear/actualizar el vistitante, pero se continuara. Detalle: {visitor_resp}")
-        return jsonify({"status": "error", "message": "Fallo al sincronizar con Zoho", "details": visitor_resp}), 500
+        #return jsonify({"status": "error", "message": "Fallo al sincronizar con Zoho", "details": visitor_resp}), 500
+        
         #no se devuelve un error para que el mensaje aun se pueda registrar
 
     # Extraer visitor_id real de Zoho (si lo genera)
