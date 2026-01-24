@@ -170,7 +170,7 @@ def get_access_token():
 #Funciones Auxiliares
 #________________________________________________________________________________________
 #________________________________________________________________________________________
-def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= None, apellido= None,  email= None, custom_fields=None, tags=None):
+def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= None, apellido= None,  email= None, custom_fields=None, tag_ids=None):
     """
     Crea o actualiza visitante, devuelve respuesta de zoho, importante envia el tags
     """
@@ -202,8 +202,8 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
         #"custom_fields": custom_fields or {"canal": "whatsapp"} 
 
     #incluir tags si existen
-    if tags:
-        payload["tags"] = tags
+    if tag_ids:
+        payload["tag_ids"] = tag_ids
     #else:
      #   payload["tag_ids"] = "" #[] #se incluye porque es obligatorio asi este vacio
     logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
@@ -440,7 +440,7 @@ def from_waba():
         apellido = user_last_name, 
         email = user_email, 
         custom_fields={"canal": "whatsapp"},
-        tags=[tag_name] 
+        tag_ids=[tag_name] 
         )
         
     if status >= 400:
