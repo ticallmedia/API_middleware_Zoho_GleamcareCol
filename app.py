@@ -170,7 +170,7 @@ def get_access_token():
 #Funciones Auxiliares
 #________________________________________________________________________________________
 #________________________________________________________________________________________
-def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= None, apellido= None,  email= None, custom_fields=None, tag_ids=None):
+def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= None, apellido= None,  email= None, custom_fields=None, tags=None):
     """
     Crea o actualiza visitante, devuelve respuesta de zoho, importante envia el tags
     """
@@ -202,8 +202,8 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono,  nombre= Non
         #"custom_fields": custom_fields or {"canal": "whatsapp"} 
 
     #incluir tags si existen
-    if tag_ids:
-        payload["tag_ids"] = tag_ids
+    if tags:
+        payload["tags"] = tags
     #else:
      #   payload["tag_ids"] = "" #[] #se incluye porque es obligatorio asi este vacio
     logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
