@@ -425,7 +425,7 @@ def from_waba():
 
     visitor_id_local = f"whatsapp_{user_id}"
 
-    nombre = user_first_name or f"whatsapp {user_id}"
+    nombre = user_first_name or f"Visitante {user_id}"
     apellido = user_last_name or ""
     email = user_email or f"{user_id}@email.com"
     nombre_completo = f"{nombre} {apellido}".strip()
