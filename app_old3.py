@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, json
+from flask import Flask, render_template, request, jsonify
 from json import JSONDecodeError
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
@@ -171,17 +171,16 @@ def get_access_token():
 #________________________________________________________________________________________
 #________________________________________________________________________________________
 
-def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None, apellido=None, email=None, custom_fields=None):
+def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None, apellido=None, email=None, custom_fields=None, tag_ids=None):
     """
-    Crea o actualiza visitante en Zoho SalesIQ v2
+    Crea o actualiza visitante en Zoho IQ
     
-    ESTRATEGIA:
-    1. Intentar actualizar con PATCH (asume que existe)
-    2. Si falla con 404, crear con POST
+    IMPORTANTE: Zoho SalesIQ v2 NO acepta tag_ids en el endpoint de visitantes.
+    Los tags se deben asignar posteriormente a través de conversaciones.
     """
     access_token = get_access_token()
     if not access_token:
-        logging.error("create_or_update_visitor: no se obtuvo access_token valido")
+        logging.error("create_or_update_visitor: no se obtuvo un access_token valido...")
         return {"error": "no_access_token"}, 401
     
     headers = {
@@ -189,12 +188,15 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
         "Content-Type": "application/json"
     }
 
-    # Construir payload (sin 'id' porque va en la URL)
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
+
     payload = {
+        "id": str(visitor_id),
         "name": nombre_completo,
         "contactnumber": str(telefono)
     }
     
+    # Solo agregar campos con valores válidos
     if nombre:
         payload["first_name"] = nombre
     if apellido:    
@@ -204,58 +206,22 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
     if custom_fields:
         payload["custom_fields"] = custom_fields
 
-    # =========================================
-    # PASO 1: Intentar ACTUALIZAR (PATCH)
-    # =========================================
-    update_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors/{visitor_id}"
+    # Los tags se asignan a través de conversaciones, no de visitantes
     
-    logging.info(f"Intentando actualizar visitante: PATCH {update_url}")
-    logging.info(f"Payload: {json.dumps(payload, indent=2)}")
-    
+    logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
+
     try:
-        r_update = requests.patch(update_url, headers=headers, json=payload, timeout=10)
-        logging.info(f"PATCH respuesta: status={r_update.status_code}, body={r_update.text[:300]}")
+        r = requests.post(url, headers=headers, json=payload, timeout=10)
+        logging.info(f"Respuesta de zoho al actualizar visitante: status {r.status_code} resp={r.text}")
         
-        if r_update.status_code in [200, 201, 204]:
-            logging.info(f"✅ Visitante {visitor_id} ACTUALIZADO exitosamente")
-            return r_update.json() if r_update.text else {"success": True, "updated": True}, r_update.status_code
-        
-        elif r_update.status_code == 404:
-            # Visitante no existe, intentar crear
-            logging.info(f"Visitante {visitor_id} no existe. Intentando crear...")
-            
+        if r.status_code in [200, 201]:
+            return r.json(), r.status_code
         else:
-            # Otro error
-            logging.error(f"Error en PATCH: {r_update.status_code} - {r_update.text}")
-            return {"error": "update_failed", "details": r_update.text}, r_update.status_code
+            logging.error(f"Error Zoho: {r.status_code} - {r.text}")
+            return {"error": "zoho_error", "details": r.text}, r.status_code
     
     except requests.exceptions.RequestException as e:
-        logging.error(f"Excepción en PATCH: {e}")
-    
-    # =========================================
-    # PASO 2: CREAR nuevo visitante (POST)
-    # =========================================
-    create_url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
-    
-    # Ahora SÍ incluir 'id' en el payload
-    payload["id"] = str(visitor_id)
-    
-    logging.info(f"Creando nuevo visitante: POST {create_url}")
-    logging.info(f"Payload: {json.dumps(payload, indent=2)}")
-    
-    try:
-        r_create = requests.post(create_url, headers=headers, json=payload, timeout=10)
-        logging.info(f"POST respuesta: status={r_create.status_code}, body={r_create.text[:300]}")
-        
-        if r_create.status_code in [200, 201]:
-            logging.info(f"✅ Visitante {visitor_id} CREADO exitosamente")
-            return r_create.json(), r_create.status_code
-        else:
-            logging.error(f"Error en POST: {r_create.status_code} - {r_create.text}")
-            return {"error": "create_failed", "details": r_create.text}, r_create.status_code
-    
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Excepción en POST: {e}")
+        logging.error(f"Excepción en create_or_update_visitor: {e}")
         return {"error": str(e)}, 500
 
 
