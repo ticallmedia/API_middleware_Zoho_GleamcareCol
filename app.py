@@ -343,27 +343,43 @@ def update_conversation_with_visitor_data(conversation_id, nombre, apellido, ema
     
     except Exception as e:
         return {"error": str(e)}, 500
+    
+
+
+
 
 @app.route('/api/update-visitor-data', methods=['POST'])
 def update_visitor_data():
     """
-    Actualiza datos del visitante usando el método más confiable disponible
+    Versión simplificada: Solo actualiza custom_fields
+    (No requiere acceso a CRM)
     """
     data = request.json or {}
-    logging.info(f"/api/update-visitor-data - Datos recibidos: {data}")
     
     user_id = data.get("user_id")
-    first_name = data.get("first_name", "").strip()
-    last_name = data.get("last_name", "").strip()
-    email = data.get("email", "").strip()
+    first_name = data.get("first_name", "")
+    last_name = data.get("last_name", "")
+    email = data.get("email", "")
+    servicio = data.get("servicio", "")
+    descripcion = data.get("descripcion", "")
     
-    if not user_id or not any([first_name, last_name, email]):
-        return jsonify({"error": "Faltan datos requeridos"}), 400
+    if not user_id:
+        return jsonify({"error": "missing user_id"}), 400
     
     visitor_id = f"whatsapp_{user_id}"
     nombre_completo = f"{first_name} {last_name}".strip()
     
-    # MÉTODO 1: Intentar actualizar visitante directamente
+    # Custom fields (ESTO SÍ FUNCIONA en SalesIQ)
+    custom_fields = {
+        "canal": "whatsapp",
+        "nombre_real": first_name,
+        "apellido_real": last_name,
+        "email_real": email,
+        "servicio_interes": servicio,
+        "descripcion_negocio": descripcion[:500],  # Limitar a 500 chars
+        "datos_completos": "SI"
+    }
+    
     visitor_resp, status = create_or_update_visitor(
         visitor_id=visitor_id,
         nombre_completo=nombre_completo,
@@ -371,62 +387,153 @@ def update_visitor_data():
         nombre=first_name,
         apellido=last_name,
         email=email,
-        custom_fields={"canal": "whatsapp", "datos_completos": "true"}
+        custom_fields=custom_fields
     )
     
-    if status in [200, 201, 204]:
-        logging.info(f"✅ Visitante actualizado exitosamente vía Visitors API")
-        return jsonify({
-            "status": "success",
-            "method": "visitors_api",
-            "visitor_response": visitor_resp
-        }), 200
-    
-    # MÉTODO 2: Si falla, intentar vía conversación
-    logging.warning(f"Visitors API falló. Intentando vía conversación...")
-    
-    conversation_id = busca_conversacion(user_id)
-    
-    if conversation_id:
-        conv_resp, conv_status = update_conversation_with_visitor_data(
-            conversation_id, first_name, last_name, email
+    # Agregar nota visible en conversación
+    conv_id = busca_conversacion(user_id)
+    if conv_id:
+        nota = (
+            f"📋 **INFORMACIÓN DEL LEAD ACTUALIZADA**\n\n"
+            f"👤 Nombre: {first_name} {last_name}\n"
+            f"📧 Email: {email}\n"
+            f"🎯 Servicio: {servicio}\n"
+            f"📝 Descripción: {descripcion[:200]}..."
         )
-        
-        if conv_status in [200, 201, 204]:
-            logging.info(f"✅ Visitante actualizado vía conversación")
-            return jsonify({
-                "status": "success",
-                "method": "conversation_api",
-                "conversation_response": conv_resp
-            }), 200
+        envio_mesaje_a_conversacion(conv_id, nota)
     
-    # MÉTODO 3: Último recurso - Contacts API
-    logging.warning(f"Intentando Contacts API...")
+    return jsonify({
+        "status": "success",
+        "visitor_updated": status in [200, 201],
+        "custom_fields": custom_fields,
+        "note_added_to_conversation": conv_id is not None
+    }), 200
+
+
+#conexion con api_crm
+"""
+@app.route('/api/update-visitor-data', methods=['POST'])
+def update_visitor_data():
+    #    Actualiza datos del visitante usando el método que SÍ funciona
+
+
+    data = request.json or {}
+    logging.info(f"/api/update-visitor-data - Datos recibidos: {data}")
     
-    contact_resp, contact_status = update_visitor_via_contacts_api(
-        visitor_id, first_name, last_name, email, user_id
+    user_id = data.get("user_id")
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+    email = data.get("email", "").strip()
+    servicio = data.get("servicio", "")
+    descripcion = data.get("descripcion", "")
+    
+    if not user_id:
+        return jsonify({"error": "missing user_id"}), 400
+    
+    visitor_id = f"whatsapp_{user_id}"
+    nombre_completo = f"{first_name} {last_name}".strip()
+    
+    # MÉTODO 1: Actualizar custom_fields en SalesIQ (siempre funciona)
+    custom_fields = {
+        "canal": "whatsapp",
+        "nombre_real": first_name,
+        "apellido_real": last_name,
+        "email_real": email,
+        "servicio_interes": servicio,
+        "descripcion_negocio": descripcion,
+        "datos_completos": "true",
+        "ultima_actualizacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    visitor_resp, status = create_or_update_visitor(
+        visitor_id=visitor_id,
+        nombre_completo=nombre_completo,
+        telefono=user_id,
+        nombre=first_name,
+        apellido=last_name,
+        email=email,
+        custom_fields=custom_fields
     )
     
-    if contact_status in [200, 201]:
-        logging.info(f"✅ Visitante actualizado vía Contacts API")
-        return jsonify({
-            "status": "success",
-            "method": "contacts_api",
-            "contact_response": contact_resp
-        }), 200
+    # MÉTODO 2: Sincronizar con Zoho CRM (recomendado)
+    crm_resp, crm_status = sync_visitor_to_zoho_crm(
+        visitor_id=visitor_id,
+        nombre=first_name,
+        apellido=last_name,
+        email=email,
+        telefono=user_id,
+        servicio=servicio,
+        descripcion=descripcion
+    )
     
-    # Si todo falla
-    logging.error(f"❌ No se pudo actualizar visitante por ningún método")
-    return jsonify({
-        "status": "error",
-        "message": "No se pudo actualizar el visitante",
-        "attempts": {
-            "visitors_api": visitor_resp,
-            "conversation_api": conv_resp if conversation_id else "No hay conversación activa",
-            "contacts_api": contact_resp
+    # Resultado
+    result = {
+        "status": "success",
+        "salesiq_update": {
+            "status_code": status,
+            "custom_fields_updated": True if status in [200, 201] else False,
+            "details": visitor_resp
+        },
+        "crm_sync": {
+            "status_code": crm_status,
+            "synced": True if crm_status in [200, 201] else False,
+            "details": crm_resp
         }
-    }), 500
+    }
+    
+    logging.info(f"✅ Resultado final: {json.dumps(result, indent=2)}")
+    
+    return jsonify(result), 200
 
+
+
+def sync_visitor_to_zoho_crm(visitor_id, nombre, apellido, email, telefono, servicio, descripcion):
+    #    Sincroniza los datos del visitante directamente a Zoho CRM    Esta es la forma CORRECTA de actualizar información de contactos
+    
+    access_token = get_access_token()
+    if not access_token:
+        return {"error": "no_access_token"}, 401
+    
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    # Endpoint de Zoho CRM (diferente de SalesIQ)
+    crm_url = "https://www.zohoapis.com/crm/v2/Contacts/upsert"
+    
+    payload = {
+        "data": [{
+            "Phone": telefono,
+            "First_Name": nombre,
+            "Last_Name": apellido,
+            "Email": email,
+            "Lead_Source": "WhatsApp Bot",
+            "Description": f"Servicio de interés: {servicio}\n\n{descripcion}",
+            "Visitor_ID": visitor_id  # Campo personalizado para vincular
+        }],
+        "duplicate_check_fields": ["Phone"],  # Actualiza si ya existe
+        "trigger": ["approval", "workflow", "blueprint"]
+    }
+    
+    logging.info(f"Sincronizando con Zoho CRM: {crm_url}")
+    logging.info(f"Payload: {json.dumps(payload, indent=2)}")
+    
+    try:
+        r = requests.post(crm_url, headers=headers, json=payload, timeout=10)
+        logging.info(f"CRM respuesta: {r.status_code} - {r.text[:500]}")
+        
+        if r.status_code in [200, 201]:
+            logging.info(f"✅ Contacto sincronizado en Zoho CRM")
+            return r.json(), r.status_code
+        else:
+            return {"error": "crm_sync_failed", "details": r.text}, r.status_code
+    
+    except Exception as e:
+        logging.error(f"Error sync CRM: {e}")
+        return {"error": str(e)}, 500
+
+"""
 
 
 def create_conversation_if_configured(visitor_user_id, nombre_completo, nombre, apellido, email, telefono,question):
