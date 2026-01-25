@@ -259,6 +259,176 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
         return {"error": str(e)}, 500
 
 
+
+
+def update_visitor_via_contacts_api(visitor_id, nombre, apellido, email, telefono):
+    """
+    Alternativa: Usar la API de Contacts de Zoho para actualizar datos
+    
+    Esta API es más flexible para actualizaciones
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return {"error": "no_access_token"}, 401
+    
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    # Endpoint de Contacts (diferente de Visitors)
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/contacts"
+    
+    payload = {
+        "visitor_id": str(visitor_id),
+        "name": f"{nombre} {apellido}".strip(),
+        "email": email,
+        "phone": telefono
+    }
+    
+    if nombre:
+        payload["first_name"] = nombre
+    if apellido:
+        payload["last_name"] = apellido
+    
+    logging.info(f"Actualizando contacto: POST {url}")
+    logging.info(f"Payload: {json.dumps(payload, indent=2)}")
+    
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=10)
+        logging.info(f"Contacts API respuesta: {r.status_code} - {r.text[:300]}")
+        
+        if r.status_code in [200, 201]:
+            return r.json(), r.status_code
+        else:
+            return {"error": "contacts_update_failed", "details": r.text}, r.status_code
+    
+    except Exception as e:
+        logging.error(f"Error en Contacts API: {e}")
+        return {"error": str(e)}, 500
+
+
+def update_conversation_with_visitor_data(conversation_id, nombre, apellido, email):
+    """
+    Actualiza los datos del visitante a través de la conversación
+    """
+    access_token = get_access_token()
+    if not access_token:
+        return {"error": "no_access_token"}, 401
+    
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversation_id}"
+    
+    payload = {
+        "visitor": {
+            "name": f"{nombre} {apellido}".strip(),
+            "email": email,
+            "first_name": nombre,
+            "last_name": apellido
+        }
+    }
+    
+    try:
+        r = requests.patch(url, headers=headers, json=payload, timeout=10)
+        logging.info(f"Conversación actualizada: {r.status_code} - {r.text[:200]}")
+        
+        if r.status_code in [200, 201, 204]:
+            return r.json() if r.text else {"success": True}, r.status_code
+        else:
+            return {"error": "conversation_update_failed", "details": r.text}, r.status_code
+    
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+@app.route('/api/update-visitor-data', methods=['POST'])
+def update_visitor_data():
+    """
+    Actualiza datos del visitante usando el método más confiable disponible
+    """
+    data = request.json or {}
+    logging.info(f"/api/update-visitor-data - Datos recibidos: {data}")
+    
+    user_id = data.get("user_id")
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+    email = data.get("email", "").strip()
+    
+    if not user_id or not any([first_name, last_name, email]):
+        return jsonify({"error": "Faltan datos requeridos"}), 400
+    
+    visitor_id = f"whatsapp_{user_id}"
+    nombre_completo = f"{first_name} {last_name}".strip()
+    
+    # MÉTODO 1: Intentar actualizar visitante directamente
+    visitor_resp, status = create_or_update_visitor(
+        visitor_id=visitor_id,
+        nombre_completo=nombre_completo,
+        telefono=user_id,
+        nombre=first_name,
+        apellido=last_name,
+        email=email,
+        custom_fields={"canal": "whatsapp", "datos_completos": "true"}
+    )
+    
+    if status in [200, 201, 204]:
+        logging.info(f"✅ Visitante actualizado exitosamente vía Visitors API")
+        return jsonify({
+            "status": "success",
+            "method": "visitors_api",
+            "visitor_response": visitor_resp
+        }), 200
+    
+    # MÉTODO 2: Si falla, intentar vía conversación
+    logging.warning(f"Visitors API falló. Intentando vía conversación...")
+    
+    conversation_id = busca_conversacion(user_id)
+    
+    if conversation_id:
+        conv_resp, conv_status = update_conversation_with_visitor_data(
+            conversation_id, first_name, last_name, email
+        )
+        
+        if conv_status in [200, 201, 204]:
+            logging.info(f"✅ Visitante actualizado vía conversación")
+            return jsonify({
+                "status": "success",
+                "method": "conversation_api",
+                "conversation_response": conv_resp
+            }), 200
+    
+    # MÉTODO 3: Último recurso - Contacts API
+    logging.warning(f"Intentando Contacts API...")
+    
+    contact_resp, contact_status = update_visitor_via_contacts_api(
+        visitor_id, first_name, last_name, email, user_id
+    )
+    
+    if contact_status in [200, 201]:
+        logging.info(f"✅ Visitante actualizado vía Contacts API")
+        return jsonify({
+            "status": "success",
+            "method": "contacts_api",
+            "contact_response": contact_resp
+        }), 200
+    
+    # Si todo falla
+    logging.error(f"❌ No se pudo actualizar visitante por ningún método")
+    return jsonify({
+        "status": "error",
+        "message": "No se pudo actualizar el visitante",
+        "attempts": {
+            "visitors_api": visitor_resp,
+            "conversation_api": conv_resp if conversation_id else "No hay conversación activa",
+            "contacts_api": contact_resp
+        }
+    }), 500
+
+
+
 def create_conversation_if_configured(visitor_user_id, nombre_completo, nombre, apellido, email, telefono,question):
     """
     Crea conversaciones en SalesIQ
