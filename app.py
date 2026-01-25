@@ -206,7 +206,6 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
     if custom_fields:
         payload["custom_fields"] = custom_fields
 
-    # ⭐ CRÍTICO: NO incluir tag_ids aquí - Zoho lo rechaza
     # Los tags se asignan a través de conversaciones, no de visitantes
     
     logging.info(f"create_or_update_visitor: POST {url} payload={payload}")
@@ -309,25 +308,25 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
     elif "btn_no1" in mensaje:
         mensaje = "[👤 Usuario]: No"
     elif "btn_1" in mensaje:
-        mensaje = "[👤 Usuario]: DDA & Mobile Campaigns 📱"
+        mensaje = "[👤 Usuario]: 📱DDA & Mobile Campaigns"
     elif "btn_2" in mensaje:
-        mensaje = "[👤 Usuario]: Websites 🌐"
+        mensaje = "[👤 Usuario]: 📊Display Media Planning"
     elif "btn_3" in mensaje:
-        mensaje = "[👤 Usuario]: Advertising Photography 📸"
+        mensaje = "[👤 Usuario]: 🛒Ecommerce Strategy"
     elif "btn_4" in mensaje:
-        mensaje = "[👤 Usuario]: Content Marketing ✍️"
+        mensaje = "[👤 Usuario]: 📣Paid Social Media"
     elif "btn_5" in mensaje:
-        mensaje = "[👤 Usuario]: Media Strategy 📈"
+        mensaje = "[👤 Usuario]: 🎯Audience Studies"
     elif "btn_6" in mensaje:
-        mensaje = "[👤 Usuario]: Digital Marketing 💻"
+        mensaje = "[👤 Usuario]: 🚀Digital Marketing"
     elif "btn_7" in mensaje:
-        mensaje = "[👤 Usuario]: Paid Social Media 📊"
+        mensaje = "[👤 Usuario]: 📰Media Strategy"
     elif "btn_8" in mensaje:
-        mensaje = "[👤 Usuario]: E-commerce Strategy 🛒"
+        mensaje = "[👤 Usuario]: 🤖Custom Bot Development"
     elif "btn_9" in mensaje:
-        mensaje = "[👤 Usuario]: Display Media 📺"
+        mensaje = "[👤 Usuario]: 🌐WebSites"
     elif "btn_0" in mensaje:
-        mensaje = "[👤 Usuario]: Hablar con un agente 🗣️"
+        mensaje = "[👤 Usuario]: 🗣️Talk to an Agent"
     else:
         mensaje
 
@@ -426,7 +425,6 @@ def from_waba():
     email = user_email or f"{user_id}@email.com"
     nombre_completo = f"{nombre} {apellido}".strip()
 
-    # ⭐ NO pasar tag_ids aquí
     visitor_resp, status = create_or_update_visitor(
         visitor_id=visitor_id_local, 
         nombre_completo=nombre_completo, 
@@ -472,7 +470,7 @@ def from_waba():
     conversation_id = busca_conversacion(user_id)
 
     if conversation_id:
-        # ⭐ NUEVO: Asignar tag a conversación existente
+        #Asignar tag a conversación existente
         if tag_name:
             asignar_tag_a_conversacion(conversation_id, tag_name)
         
@@ -487,7 +485,7 @@ def from_waba():
             zoho_visitor_id, nombre_completo, nombre, apellido, email, user_id, mensaje_formateado
         )
         
-        # ⭐ NUEVO: Asignar tag a conversación recién creada
+        # Asignar tag a conversación recién creada
         if conv_resp and isinstance(conv_resp, dict):
             new_conv_id = conv_resp.get("data", {}).get("id")
             if new_conv_id and tag_name:
