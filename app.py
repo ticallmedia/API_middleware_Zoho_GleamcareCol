@@ -429,13 +429,14 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
         response.raise_for_status()  # Verificar si hubo errores HTTP
         logging.info(f"envio_mesaje_a_conversacion: Enviando mensaje a la conversación: {conversation_id}")
         
-        """
+        
         try:
             response_data =  response.json()
             logging.info(f"envio_mesaje_a_co: respuesta de API: {response_data}")
             return True
         except JSONDecodeError:
             logging.info(f"envio_mesaje_a_conversacion: Mensajes enviado con exito, la API devolvio una respuesta vacia (200 OK) lo cual es normal...")
+        
         """
         #  Manejar error 6018 (no participante)
         if response.status_code == 400:
@@ -446,7 +447,7 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
                 logging.error(f"Error 6018: Bot no es participante de conversación {conversation_id}")
                 logging.info("Retornando None para forzar creación de nueva conversación")
                 return None  # Esto forzará la creación de nueva conversación
-
+"""
 
     except requests.exceptions.HTTPError as http_err:
         logging.error(f"envio_mesaje_a_conversacion: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
