@@ -45,6 +45,12 @@ Actualiza 08/01/2026:
 - Se configura Flujo de Trabajo en Zoho Sales IQ, para configurar el webhook desde Zoho
 - Se crea funcion from_zoho(): que realiza la captura del webhook y se envia a la App A
 
+Version 1.4
+
+Actualizacion 26/01/2026:
+- Act8ualiza la funcion busca_conversacion, debido a que el filtro en 'param' no era efectivo
+por ende no creaba conversaciones nuevas
+
 """
 #________________________________________________________________________________________
 # Integración WABA (App A)--- Zoho SalesIQ (App B, middleware)
@@ -269,28 +275,51 @@ def busca_conversacion(phone):
         "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json"
     }
+
+    """
     params = {
         "phone": phone,
         "status": "open"
     }
-    
+    """
     try:
         logging.info(f"Buscando conversación abierta para el teléfono: {phone}")
-        response = requests.get(url, headers=headers, params=params, timeout=10)
+        #response = requests.get(url, headers=headers, params=params, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         
         response.raise_for_status()  # Verificar si hubo errores HTTP
         response_data = response.json()
 
-        logging.info(f"busca_conversacion: Respuesta de la API: {response_data}")
+        #logging.info(f"busca_conversacion: Respuesta de la API: {response_data}")
+        logging.info(f"busca_conversacion: Total de conversaciones obtenidas: {len(response_data.get('data', []))}")
 
         if 'data' in response_data and response_data.get('data'):
-            primera_conversacion = response_data['data'][0]
-            conversation_id = primera_conversacion.get('id')
+            #primera_conversacion = response_data['data'][0]
+            #conversation_id = primera_conversacion.get('id')
 
+            conversaciones = response_data['data']
+
+            """
             if conversation_id:
                 logging.info(f"Se encontró una conversación abierta con ID: {conversation_id}")
                 return conversation_id
-        
+            """
+            for conv in conversaciones:
+                visitor = conv.get('visitor',{})
+                visitor_phone = visitor.get('phone',{})
+                chat_status = conv.get('chat_status',{})
+                status_key = chat_status.get('status_key',{})
+                
+                #logging.info(f"Se encontró una conversación abierta con ID: {conversation_id}")
+
+                logging.info(f"busca_conversacion: Revisando conversacion {conv.get('id')} - Teléfono: {visitor_phone}, Estado: {status_key}")
+
+                if visitor_phone == phone and status_key == "open":
+                    conversation_id = conv.get("id")
+                    logging.info(f"Se encontró una conversación abierta con ID: {conversation_id} para el telefono: {phone}")
+                    return conversation_id
+
+
         logging.info(f"No se encontraron conversaciones abiertas para el teléfono {phone}")
         return None
     
