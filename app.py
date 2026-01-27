@@ -570,20 +570,12 @@ def from_waba():
             asignar_tag_a_conversacion(conversation_id, tag_name)
         
         envio_mensaje = envio_mesaje_a_conversacion(conversation_id, mensaje_formateado)
-        
-        #si falla por error 6018, crear nueva conversacion 
-        if envio_mensaje is None:
-            logging.warning(f"No se pues usar conversación: {conversation_id}. Creando nueva...")
-        else:        
-            return jsonify({
-                "status": "mensaje_enviado",
-                "conversation_id": conversation_id
-            }), 200
-    
-    #si no hya conversacion valida, crear nueva
-    if not conversation_id:
+        return jsonify({
+            "status": "mensaje_enviado",
+            "conversation_id": conversation_id
+        }), 200
+    else:
         # Crear nueva conversación
-        logging.info(f"Creando nueva conversación para {user_id}")
         conv_resp = create_conversation_if_configured(
             zoho_visitor_id, nombre_completo, nombre, apellido, email, user_id, mensaje_formateado
         )
