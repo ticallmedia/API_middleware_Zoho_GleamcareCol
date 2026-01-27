@@ -180,11 +180,7 @@ def get_access_token():
 
 def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None, apellido=None, email=None, custom_fields=None):
     """
-    Crea o actualiza visitante en Zoho SalesIQ v2
-    
-    ESTRATEGIA:
-    1. Intentar actualizar con PATCH (asume que existe)
-    2. Si falla con 404, crear con POST
+    Crea o actualiza visitante manejando el caso de visitantes existentes
     """
     access_token = get_access_token()
     if not access_token:
@@ -198,8 +194,10 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
 
     # Construir payload (sin 'id' porque va en la URL)
     payload = {
+        "id": str(visitor_id),
         "name": nombre_completo,
-        "contactnumber": str(telefono)
+        "contactnumber": str(telefono),
+        "custom_fields": custom_fields
     }
     
     if nombre:
@@ -223,6 +221,15 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
     try:
         r_create = requests.post(create_url, headers=headers, json=payload, timeout=10)
         logging.info(f"POST respuesta: status={r_create.status_code}, body={r_create.text[:300]}")
+
+        #maneja código 400 que indica que visitante existe
+        if r_create.status_code == 400:
+            error_data = r_create.json()
+            error_code = error_data.get('error',{}.get('code'))
+
+            if error_code == 1011:
+                logging.warning(f"Visitante {visitor_id}, ya existe. Esto es normal")
+                return {"data": {"id": visitor_id}, "already_exists":True}, 200
         
         if r_create.status_code in [200, 201]:
             logging.info(f"✅ Visitante {visitor_id} CREADO exitosamente")
@@ -291,7 +298,9 @@ def busca_conversacion(phone):
         response_data = response.json()
 
         #logging.info(f"busca_conversacion: Respuesta de la API: {response_data}")
-        logging.info(f"busca_conversacion: Total de conversaciones obtenidas: {len(response_data.get('data', []))}")
+
+        total = len(response_data.get('data', []))
+        logging.info(f"busca_conversacion: Total de conversaciones obtenidas: {total}")
 
         if 'data' in response_data and response_data.get('data'):
             #primera_conversacion = response_data['data'][0]
@@ -309,15 +318,36 @@ def busca_conversacion(phone):
                 visitor_phone = visitor.get('phone',{})
                 chat_status = conv.get('chat_status',{})
                 status_key = chat_status.get('status_key',{})
+                state = chat_status.get('state',{})
+                conv_id = conv.get('id',{})
                 
                 #logging.info(f"Se encontró una conversación abierta con ID: {conversation_id}")
 
-                logging.info(f"busca_conversacion: Revisando conversacion {conv.get('id')} - Teléfono: {visitor_phone}, Estado: {status_key}")
+                # 1. Teléfono debe coincidir
+                # 2. Estado debe ser "open"
+                # 3. state debe ser 1 (waiting) o 2 (connected) - NO 3 (ended)
+                # 4. No debe tener un agente humano activo (attender)
 
-                if visitor_phone == phone and status_key == "open":
-                    conversation_id = conv.get("id")
-                    logging.info(f"Se encontró una conversación abierta con ID: {conversation_id} para el telefono: {phone}")
-                    return conversation_id
+                attender = conv.get('attender')
+                #revisa ti tiene un agente HUMANO
+                is_bot_conversation = not attender or attender.get('is_bot',False) 
+
+                logging.info(
+                    f"busca_conversacion: Revisando conversacion {conv.get('id')} - "
+                    f"Teléfono: {visitor_phone}, Estado: {status_key},"
+                    f"state: {state}, Bot Conversacipión: {is_bot_conversation}"
+                    )
+                
+
+                #coincidencia exacta mas validaciones
+                if(visitor_phone == phone and 
+                   status_key == "open" and
+                   state in (1, 2) and
+                   is_bot_conversation):
+                    
+                    #conversation_id = conv.get("id")
+                    logging.info(f"Se encontró una conversación abierta con ID: {conv_id} para el telefono: {phone}")
+                    return conv_id
 
 
         logging.info(f"No se encontraron conversaciones abiertas para el teléfono {phone}")
@@ -365,28 +395,43 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
         mensaje
 
     access_token = get_access_token()
+    if not access_token:
+        return {"error":"no_access_token"}, 401
 
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversation_id}/messages"
     headers = {"Authorization": f"Zoho-oauthtoken {access_token}", 
                "Content-Type": "application/json"}
 
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversation_id}/messages"
+    
     payload = {
         "text": mensaje
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
         #revision si hay un error de HTTP
         response.raise_for_status()  # Verificar si hubo errores HTTP
         logging.info(f"envio_mesaje_a_conversacion: Enviando mensaje a la conversación: {conversation_id}")
         
+        """
         try:
             response_data =  response.json()
             logging.info(f"envio_mesaje_a_co: respuesta de API: {response_data}")
             return True
         except JSONDecodeError:
             logging.info(f"envio_mesaje_a_conversacion: Mensajes enviado con exito, la API devolvio una respuesta vacia (200 OK) lo cual es normal...")
-    
+        """
+        # ⭐ Manejar error 6018 (no participante)
+        if response.status_code == 400:
+            error_data = response.json()
+            error_code = error_data.get('error', {}).get('code')
+            
+            if error_code == 6018:
+                logging.error(f"Error 6018: Bot no es participante de conversación {conversation_id}")
+                logging.info("Retornando None para forzar creación de nueva conversación")
+                return None  # Esto forzará la creación de nueva conversación
+
+
     except requests.exceptions.HTTPError as http_err:
         logging.error(f"envio_mesaje_a_conversacion: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
         return False
@@ -509,12 +554,20 @@ def from_waba():
             asignar_tag_a_conversacion(conversation_id, tag_name)
         
         envio_mensaje = envio_mesaje_a_conversacion(conversation_id, mensaje_formateado)
-        return jsonify({
-            "status": "mensaje_enviado",
-            "conversation_id": conversation_id
-        }), 200
-    else:
+        
+        #si falla por error 6018, crear nueva conversacion 
+        if envio_mensaje is None:
+            logging.warning(f"No se pues usar conversación: {conversation_id}. Creando nueva...")
+        else:        
+            return jsonify({
+                "status": "mensaje_enviado",
+                "conversation_id": conversation_id
+            }), 200
+    
+    #si no hya conversacion valida, crear nueva
+    if not conversation_id:
         # Crear nueva conversación
+        logging.info(f"Creando nueva conversación para {user_id}")
         conv_resp = create_conversation_if_configured(
             zoho_visitor_id, nombre_completo, nombre, apellido, email, user_id, mensaje_formateado
         )
