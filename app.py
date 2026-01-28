@@ -277,7 +277,8 @@ def busca_conversacion(phone):
         response.raise_for_status()  # Verificar si hubo errores HTTP
         response_data = response.json()
 
-        if 'data' in response_data and response_data.get('data',[]):
+        #if 'data' in response_data and response_data.get('data',[]):
+        if response_data.get('data'):
             lista_conversaciones = response_data.get('data')
 
             for conv in lista_conversaciones:
