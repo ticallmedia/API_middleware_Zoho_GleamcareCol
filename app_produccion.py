@@ -269,51 +269,29 @@ def busca_conversacion(phone):
         "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json"
     }
+    params = {
+        "phone": phone,
+        "status": "open"
+    }
     
     try:
         logging.info(f"Buscando conversación abierta para el teléfono: {phone}")
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, params=params, timeout=10)
         
         response.raise_for_status()  # Verificar si hubo errores HTTP
         response_data = response.json()
 
-        if 'data' in response_data and response_data.get("data",[]):
-            lista_conversaciones = response_data.get("data")
+        logging.info(f"busca_conversacion: Respuesta de la API: {response_data}")
 
-            for conv in lista_conversaciones:
-                conversation_id = conv.get("id",{})
-                visitor = conv.get("visitor",{})
+        if 'data' in response_data and response_data.get('data'):
+            primera_conversacion = response_data['data'][0]
+            conversation_id = primera_conversacion.get('id')
 
-                if visitor:
-                    visitor_name = visitor.get("name",{})
-                    visitor_phone = visitor.get("phone",{})
-                    chat_status = conversation_id.get("chat_status",{})
-                    status_key = chat_status.get("status_key",{})
-                    state = chat_status.get("state",{})
-
-                    # 1. Teléfono debe coincidir
-                    # 2. Estado debe ser "open"
-                    # 3. state debe ser 1 (waiting) o 2 (connected) - NO 3 (ended)
-                    # 4. No debe tener un agente humano activo (attender)
-
-                    attender = conv.get("attender")
-                    #revisa si esta asignado a un agente humano
-                    is_bot_conversation = not attender or attender.get("is_bot", False)
-
-                    if (phone == visitor_phone and
-                        status_key == "open" and
-                        state in (1,2) and
-                        is_bot_conversation):
-
-                        logging.info(
-                            f":busca_conversacion:El telefono buscado coincide:"
-                            f"Conversation:{conversation_id},"
-                            f"telefono: {visitor_phone}, visitor: {visitor_name},"
-                            f"status_key: {status_key}, state: {state}"
-                            )
-                        return conversation_id
-
-        logging.info(f"busca_conversacion: No se encontraron conversaciones abiertas para el teléfono {phone}")
+            if conversation_id:
+                logging.info(f"Se encontró una conversación abierta con ID: {conversation_id}")
+                return conversation_id
+        
+        logging.info(f"No se encontraron conversaciones abiertas para el teléfono {phone}")
         return None
     
     except requests.exceptions.HTTPError as http_err:
