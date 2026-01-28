@@ -269,10 +269,15 @@ def busca_conversacion(phone):
         "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json"
     }
+    params = {
+        "phone": phone, 
+        "status": "open"
+        }
     
     try:
         logging.info(f"busca_conversacion:Buscando conversación abierta para el teléfono: {phone}")
-        response = requests.get(url, headers=headers, timeout=10)
+        #response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, params=params, timeout=10)
         
         response.raise_for_status()  # Verificar si hubo errores HTTP
         response_data = response.json()
