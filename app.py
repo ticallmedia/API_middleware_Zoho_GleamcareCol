@@ -280,15 +280,16 @@ def busca_conversacion(phone):
         #if 'data' in response_data and response_data.get('data',[]):
         if 'data' in response_data and response_data.get('data'):
         #if response_data.get('data'):
-            logging.info(f"busca_conversacion: control................1")
+            #logging.info(f"busca_conversacion: control................1")
             lista_conversaciones = response_data['data']
 
             for conv in lista_conversaciones:
-                logging.info(f"busca_conversacion: control................{conv}")
                 conversation_id = conv.get('id')
                 visitor = conv.get('visitor',{})
+                logging.info(f"busca_conversacion: control................{conversation_id}")
 
                 if visitor:
+                    logging.info(f"busca_conversacion: control................{visitor}")
                     visitor_name = visitor.get('name')
                     visitor_phone = visitor.get('phone')
                     chat_status = conv.get('chat_sttus',{})#es un diccionario
