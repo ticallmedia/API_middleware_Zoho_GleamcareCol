@@ -281,12 +281,14 @@ def busca_conversacion(phone):
         if 'data' in response_data and response_data.get('data'):
         #if response_data.get('data'):
             #logging.info(f"busca_conversacion: control................1")
-            lista_conversaciones = response_data['data']
+            #lista_conversaciones = response_data['data']
+            lista_conversaciones = response_data.get('data')
 
             for conv in lista_conversaciones:
                 conversation_id = conv.get('id')
                 visitor = conv.get('visitor',{})
-                logging.info(f"busca_conversacion: control................{conversation_id}")
+                logging.info(f"busca_conversacion: control id................{conv}")
+                logging.info(f"busca_conversacion: control id................{conversation_id}")
 
                 if visitor:
                     logging.info(f"busca_conversacion: control................{visitor}")
