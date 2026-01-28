@@ -281,15 +281,15 @@ def busca_conversacion(phone):
             lista_conversaciones = response_data.get('data')
 
             for conv in lista_conversaciones:
-                conversation_id = conv.get('id',{})
+                conversation_id = conv.get('id')
                 visitor = conv.get('visitor',{})
 
                 if visitor:
-                    visitor_name = visitor.get('name',{})
-                    visitor_phone = visitor.get('phone',{})
-                    chat_status = conversation_id.get('chat_status',{})
-                    status_key = chat_status.get('status_key',{})
-                    state = chat_status.get('state',{})
+                    visitor_name = visitor.get('name')
+                    visitor_phone = visitor.get('phone')
+                    chat_status = conv.get('chat_sttus',{})#es un diccionario
+                    status_key = chat_status.get('status_key')
+                    state = chat_status.get('state')
 
                     # 1. Teléfono debe coincidir
                     # 2. Estado debe ser "open"
@@ -305,12 +305,12 @@ def busca_conversacion(phone):
                         state in (1,2) and
                         is_bot_conversation):
 
-                        """logging.info(
+                        logging.info(
                             f"busca_conversacion:El telefono buscado coincide - "
                             f"Conversation:{conversation_id},telefono: {visitor_phone}, visitor: {visitor_name},"
                             f"status_key: {status_key}, state: {state}"
-                            )"""
-                        logging.info(f"busca_conversacion:Se encontró una conversación abierta con ID: {conversation_id} para el telefono: {phone}")
+                            )
+                        #logging.info(f"busca_conversacion:Se encontró una conversación abierta con ID: {conversation_id} para el telefono: {phone}")
                         return conversation_id
 
         logging.info(f"busca_conversacion: No se encontraron conversaciones abiertas para el teléfono {phone}")
