@@ -278,7 +278,8 @@ def busca_conversacion(phone):
         response_data = response.json()
 
         #if 'data' in response_data and response_data.get('data',[]):
-        if response_data.get('data'):
+        if 'data' in response_data and response_data.get('data'):
+        #if response_data.get('data'):
             logging.info(f"busca_conversacion: control................1")
             lista_conversaciones = response_data['data']
 
