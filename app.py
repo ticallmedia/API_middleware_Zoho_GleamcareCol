@@ -291,7 +291,7 @@ def busca_conversacion(phone):
                 #logging.info(f"busca_conversacion: control id................{conv}")
                 #logging.info(f"busca_conversacion: control id................{conversation_id}")
 
-                if visitor:
+                if conversation_id:
                     #logging.info(f"busca_conversacion: control................{visitor}")
                     # 1. Teléfono debe coincidir
                     # 2. Estado debe ser "open"
