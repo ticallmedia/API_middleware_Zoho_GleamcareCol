@@ -277,12 +277,6 @@ def busca_conversacion(phone):
         response.raise_for_status()  # Verificar si hubo errores HTTP
         response_data = response.json()
 
-        #if 'data' in response_data and response_data.get('data',[]):
-
-        #Se crea diccionario y lista temporal
-        dic_visitor = {}
-        list_visitor = []
-
         if 'data' in response_data and response_data.get('data'):
 
         #if response_data.get('data'):
@@ -313,38 +307,18 @@ def busca_conversacion(phone):
                     #revisa si esta asignado a un agente humano
                     is_bot_conversation = not attender or attender.get('is_bot', False)
 
-                    dic_visitor[conversation_id] = {
-                        "name":visitor_name,
-                        "phone":visitor_phone,
-                        "status_key":status_key,
-                        "state":state,
-                        "is_bot_conversation":is_bot_conversation
-                    }
+                    if (phone == visitor_phone and
+                        status_key == "open" and
+                        state in (1,2) and
+                        is_bot_conversation):
+
+                        logging.info(
+                            f"busca_conversacion: El telefono buscado coincide - "
+                            f"Conversation:{conversation_id},telefono: {visitor_phone}, visitor: {visitor_name},"
+                            f"status_key: {status_key}, state: {state}"
+                            )
+                        return conversation_id
                     
-                    for conversation_id, info in dic_visitor.items():
-                        visitor_phone = conversation_id.info("phone")
-                        status_key = conversation_id.info("status_key")
-                        state = conversation_id.info("state")
-                        is_bot_conversation = conversation_id.info("is_bot_conversation")
-
-                        if (phone == visitor_phone and
-                            status_key == "open" and
-                            state in (1,2) and
-                            is_bot_conversation):
-
-                            logging.info(
-                                f"busca_conversacion: El telefono buscado coincide - "
-                                f"Conversation:{conversation_id},telefono: {visitor_phone}, visitor: {visitor_name},"
-                                f"status_key: {status_key}, state: {state}"
-                                )
-                            list_visitor.append(conversation_id)
-                        else:
-                            logging.info(f"busca_conversacion:Se encontró una conversación abierta con ID: {conversation_id} para el telefono: {phone}")
-        if list_visitor:
-            logging.info(f"busca_conversacion:Se encontraron: {len(list_visitor)}, conversation_id abiertos...")
-            inicial_conversation_id = lista_conversaciones[0]
-            logging.info(f"busca_conversacion:Se toma la primera: {inicial_conversation_id}")
-            return inicial_conversation_id
 
         logging.info(f"busca_conversacion: No se encontraron conversaciones abiertas para el teléfono {phone}")
         return None
