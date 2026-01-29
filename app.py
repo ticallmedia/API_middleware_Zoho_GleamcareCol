@@ -275,13 +275,7 @@ def busca_conversacion(phone):
         response = requests.get(url, headers=headers, timeout=10)
         
         response.raise_for_status()  # Verificar si hubo errores HTTP
-
-        #Debido aque el json carece de la misma estructura, se adaptara para conseguir el mismo resultado
-        response_data = {
-            "url": "/api/v2/ticallmedia/conversations",
-            "object": "list",
-            "data": [response.json()]
-            }
+        response_data = response.json()
 
         #if 'data' in response_data and response_data.get('data',[]):
         if 'data' in response_data and response_data.get('data'):
@@ -289,12 +283,13 @@ def busca_conversacion(phone):
             #logging.info(f"busca_conversacion: control................1")
             #lista_conversaciones = response_data['data']
             lista_conversaciones = response_data.get('data')
+            logging.info(f"busca_conversacion: json generado: {lista_conversaciones}")
 
             for conv in lista_conversaciones:
                 conversation_id = conv.get('id')
                 visitor = conv.get('visitor',{})
-                logging.info(f"busca_conversacion: control id................{conv}")
-                logging.info(f"busca_conversacion: control id................{conversation_id}")
+                #logging.info(f"busca_conversacion: control id................{conv}")
+                #logging.info(f"busca_conversacion: control id................{conversation_id}")
 
                 if visitor:
                     logging.info(f"busca_conversacion: control................{visitor}")
