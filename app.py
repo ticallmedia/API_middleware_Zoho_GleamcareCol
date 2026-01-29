@@ -278,12 +278,18 @@ def busca_conversacion(phone):
         response_data = response.json()
 
         #if 'data' in response_data and response_data.get('data',[]):
+
+        #Se crea diccionario y lista temporal
+        dic_visitor = {}
+        list_visitor = []
+
         if 'data' in response_data and response_data.get('data'):
+
         #if response_data.get('data'):
             #logging.info(f"busca_conversacion: control................1")
             #lista_conversaciones = response_data['data']
             lista_conversaciones = response_data.get('data')
-            logging.info(f"busca_conversacion: json generado................ {lista_conversaciones}")
+            #logging.info(f"busca_conversacion: json generado................ {lista_conversaciones}")
 
             for conv in lista_conversaciones:
                 conversation_id = conv.get('id')
@@ -292,34 +298,53 @@ def busca_conversacion(phone):
                 #logging.info(f"busca_conversacion: control id................{conversation_id}")
 
                 if visitor:
-                    logging.info(f"busca_conversacion: control................{visitor}")
+                    #logging.info(f"busca_conversacion: control................{visitor}")
+                    # 1. Teléfono debe coincidir
+                    # 2. Estado debe ser "open"
+                    # 3. state debe ser 1 (waiting) o 2 (connected) - NO 3 (ended)
+                    # 4. No debe tener un agente humano activo (attender)
+                    
                     visitor_name = visitor.get('name')
                     visitor_phone = visitor.get('phone')
                     chat_status = conv.get('chat_sttus',{})#es un diccionario
                     status_key = chat_status.get('status_key')
                     state = chat_status.get('state')
-
-                    # 1. Teléfono debe coincidir
-                    # 2. Estado debe ser "open"
-                    # 3. state debe ser 1 (waiting) o 2 (connected) - NO 3 (ended)
-                    # 4. No debe tener un agente humano activo (attender)
-
                     attender = conv.get('attender')
                     #revisa si esta asignado a un agente humano
                     is_bot_conversation = not attender or attender.get('is_bot', False)
 
-                    if (phone == visitor_phone and
-                        status_key == "open" and
-                        state in (1,2) and
-                        is_bot_conversation):
+                    dic_visitor[conversation_id] = {
+                        "name":visitor_name,
+                        "phone":visitor_phone,
+                        "status_key":status_key,
+                        "state":state,
+                        "is_bot_conversation":is_bot_conversation
+                    }
+                    
+                    for conversation_id, info in dic_visitor.items():
+                        visitor_phone = conversation_id.info("phone")
+                        status_key = conversation_id.info("status_key")
+                        state = conversation_id.info("state")
+                        is_bot_conversation = conversation_id.info("is_bot_conversation")
 
-                        logging.info(
-                            f"busca_conversacion:El telefono buscado coincide - "
-                            f"Conversation:{conversation_id},telefono: {visitor_phone}, visitor: {visitor_name},"
-                            f"status_key: {status_key}, state: {state}"
-                            )
-                        #logging.info(f"busca_conversacion:Se encontró una conversación abierta con ID: {conversation_id} para el telefono: {phone}")
-                        return conversation_id
+                        if (phone == visitor_phone and
+                            status_key == "open" and
+                            state in (1,2) and
+                            is_bot_conversation):
+
+                            logging.info(
+                                f"busca_conversacion: El telefono buscado coincide - "
+                                f"Conversation:{conversation_id},telefono: {visitor_phone}, visitor: {visitor_name},"
+                                f"status_key: {status_key}, state: {state}"
+                                )
+                            list_visitor.append(conversation_id)
+                        else:
+                            logging.info(f"busca_conversacion:Se encontró una conversación abierta con ID: {conversation_id} para el telefono: {phone}")
+        if list_visitor:
+            logging.info(f"busca_conversacion:Se encontraron: {len(list_visitor)}, conversation_id abiertos...")
+            inicial_conversation_id = lista_conversaciones[0]
+            logging.info(f"busca_conversacion:Se toma la primera: {inicial_conversation_id}")
+            return inicial_conversation_id
 
         logging.info(f"busca_conversacion: No se encontraron conversaciones abiertas para el teléfono {phone}")
         return None
