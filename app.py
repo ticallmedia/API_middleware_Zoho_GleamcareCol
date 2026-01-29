@@ -283,7 +283,7 @@ def busca_conversacion(phone):
             #logging.info(f"busca_conversacion: control................1")
             #lista_conversaciones = response_data['data']
             lista_conversaciones = response_data.get('data')
-            logging.info(f"busca_conversacion: json generado: {lista_conversaciones}")
+            logging.info(f"busca_conversacion: json generado................ {lista_conversaciones}")
 
             for conv in lista_conversaciones:
                 conversation_id = conv.get('id')
