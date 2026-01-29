@@ -289,10 +289,10 @@ def busca_conversacion(phone):
                 conversation_id = conv.get('id')
                 visitor = conv.get('visitor',{})
                 #logging.info(f"busca_conversacion: control id................{conv}")
-                logging.info(f"busca_conversacion: control id................{conversation_id}")
+                #logging.info(f"busca_conversacion: control id................{conversation_id}")
 
                 if visitor:
-                    logging.info(f"busca_conversacion: control................{visitor}")
+                    #logging.info(f"busca_conversacion: control................{visitor}")
                     # 1. Teléfono debe coincidir
                     # 2. Estado debe ser "open"
                     # 3. state debe ser 1 (waiting) o 2 (connected) - NO 3 (ended)
@@ -306,6 +306,9 @@ def busca_conversacion(phone):
                     attender = conv.get('attender')
                     #revisa si esta asignado a un agente humano
                     is_bot_conversation = not attender or attender.get('is_bot', False)
+                    logging.info(f"busca_conversacion: phone................{phone}")
+                    logging.info(f"busca_conversacion: visitor_phone................{visitor_phone}")
+                    logging.info(f"busca_conversacion: is_bot_conversation................{is_bot_conversation}")
 
                     if (visitor_phone == str(phone) and
                         status_key == "open" and
