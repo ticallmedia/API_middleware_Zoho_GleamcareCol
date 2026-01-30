@@ -308,9 +308,11 @@ def busca_conversacion(phone):
                     is_bot_conversation = not attender or attender.get('is_bot', False)
                     logging.info(f"busca_conversacion: phone................{phone}")
                     logging.info(f"busca_conversacion: visitor_phone................{visitor_phone}")
+                    logging.info(f"busca_conversacion: status_key................{status_key}")
+                    logging.info(f"busca_conversacion: state................{state}")
                     logging.info(f"busca_conversacion: is_bot_conversation................{is_bot_conversation}")
 
-                    if (visitor_phone == str(phone) and
+                    if (visitor_phone == phone and
                         status_key == "open" and
                         state in (1,2) and
                         is_bot_conversation):
