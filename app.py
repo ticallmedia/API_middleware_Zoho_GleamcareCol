@@ -45,6 +45,12 @@ Actualiza 08/01/2026:
 - Se configura Flujo de Trabajo en Zoho Sales IQ, para configurar el webhook desde Zoho
 - Se crea funcion from_zoho(): que realiza la captura del webhook y se envia a la App A
 
+Versión: 1.4
+
+Actualiza 08/01/2026:
+- Se buscar Visitante si no existe crea visisitante y con el fin de poder visitor_id, y 
+con este ultimo buscar una nueva conversación, si no existe crearla.
+
 """
 #________________________________________________________________________________________
 # Integración WABA (App A)--- Zoho SalesIQ (App B, middleware)
@@ -402,7 +408,306 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
         logging.error(f"envio_mesaje_a_conversacion: Error inesperado al enviar mensaje: -->{e}")
         return {"error": str(e)}
 
+#________________________________________________________________________________________
+#________________________________________________________________________________________
 
+def limpiar_telefono(telefono):
+    # Implementación arriba
+
+    """
+    Limpia y estandariza el formato del teléfono
+    """
+    if not telefono:
+        return ""
+    
+    telefono_limpio = str(telefono).strip().replace(' ','').replace('-','').replace('(','').replace(')','')
+
+    if telefono_limpio.startswith('+'):
+        telefono_limpio = '+' + telefono_limpio
+    
+    return telefono_limpio
+
+# FUNCIONES DE VISITANTES
+def obtener_o_crear_visitante(telefono):
+    # Implementación arriba
+    """
+    Buscar un visitante existente, si no existe lo crea 
+    retorna el visitor_id
+    """
+
+    logging.info(f"obtener_o_crear_visitante: buscando visitante con telefono: {telefono}")
+
+    #1. buscar el visitante existente
+    visitor_id = buscar_visitante_por_telefono(telefono)
+    
+    #2. si no existe , crear nuevo
+    if not visitor_id:
+        logging.info(f"obtener_o_crear_visitante: visitante no encontrado, crenado nuevo...")
+        visitor_id = crear_visitante(telefono)
+    else:
+        logging.info(f"obtener_o_crear_visitante: Visitante existente encontrado: {visitor_id}")
+
+    return visitor_id
+
+def buscar_visitante_por_telefono(telefono):
+    # Implementación arriba
+    """
+    Buscar un visitante existente por número de telefono
+    retorna el visitor_id si existe, None si no existe
+    """
+    
+    access_token = get_access_token()
+
+    if not access_token:
+        return {"error": "no_access_token"}, 401
+    
+    #limpiar teléfono
+    telefono_limpio = limpiar_telefono(telefono)
+
+    # URL para listar visitante
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:            
+            data = response.json()
+            visitantes = data.get('data',[])
+
+            #Buscar visitante que coincida con el teléfono
+            for visitante in visitantes:
+                phone_visitante = visitante.get('phone','')
+                phone_limpio = limpiar_telefono(phone_visitante)
+
+                if phone_limpio == telefono_limpio:
+                    visitor_id = visitante.id('id')
+                    logging.info(f"buscar_visitante_por_telefono: Visitante encontrado_ ID= {visitor_id}, telefono= {phone_visitante}")
+                    return visitor_id
+            return None        
+        else:
+            logging.error(f"buscar_visitante_por_telefono: Error al buscar visitante: {response.status_code}")
+            return None
+
+    except Exception as e:
+        logging.error(f"buscar_visitante_por_telefono: Excepción al buscar convarsación: {str(e)}")    
+        return None
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f"buscar_visitante_por_telefono: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
+        return None
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"buscar_visitante_por_telefono: Error de conexión (Timeout, DNS, etc): {req_err}")
+        return None
+
+def crear_visitante(telefono):
+    # Implementación arriba
+    """
+    Crear un nuevo visitante con el teléfono de whatsapp
+    retonra el visitor_id del visiatante creado
+    """
+    access_token = get_access_token()
+
+    if not access_token:
+        return {"error": "no_access_token"}, 401
+    
+    #limpiar teléfono
+    telefono_limpio = limpiar_telefono(telefono)
+
+    # URL para listar visitante
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/visitors"
+
+    payload = {
+        "name": f"Visitante {telefono_limpio}",
+        "phone": telefono_limpio,
+        "user_id": f"whatsapp_{telefono_limpio.replace('+','')}",
+        "info": json.dumps({
+            "source":"Whatsapp",
+            "whatsapp_number":telefono_limpio
+        })
+    }
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, json=payload)
+        
+        if response.status_code in [200, 201]:
+            data = response.json()
+            visitor_id = data.get('data',{}.get('id'))
+            logging.info(f"crear_visitante: Visitante creado existosamente {visitor_id}")
+            return visitor_id  
+        else:
+            logging.error(f"crear_visitante: Error creando visitante: {response.status_code}")
+            return None
+
+    except Exception as e:
+        logging.error(f"crear_visitante: Exception creando visitante: {str(e)}")
+        return None   
+
+# FUNCIONES DE CONVERSACIONES
+def buscar_conversacion_abierta_por_visitor(visitor_id):
+    # Implementación arriba
+    """
+    Busca conversaciones abiertas para un visitor_id especifico
+    Retona la conversación si existe, None si no
+    """
+    access_token = get_access_token()
+    if not access_token:
+        logging.error(f"buscar_conversacion_abierta_por_visitor: No se pudo obtener un access_token válido. Abortando búsqueda.")
+        return None
+    
+    logging.info(f"buscar_conversacion_abierta_por_visitor: Buscando conversación abierta para visitor_id: {visitor_id}")
+
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            conversaciones = data.get('data',[])
+
+            #filtrando conversaciones del visitante que estén abiertas
+            for conv in conversaciones:
+                conv_visitor_id = conv.get('visitor',{}).get('id','')
+                chat_status = conv.get('chat_status',{})
+                status_key = chat_status.get('status_key','')
+
+                #verificar que sea del mismo visitante y esté abierta
+                if conv_visitor_id == visitor_id and status_key =='open':
+                    chat_id = conv.get('chat_id')
+                    logging.info(f"buscar_conversacion_abierta_por_visitor: Conversación abierta encontrada: {chat_id}")
+                    return conv
+            
+            logging.info(f"buscar_conversacion_abierta_por_visitor: No hay conversaciones abierta para el visitor_id {visitor_id}")
+            return None
+        
+        else:
+            logging.error(f"buscar_conversacion_abierta_por_visitor: Error listando conversaciones: {response.status_code}")
+            return None
+
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f"buscar_conversacion_abierta_por_visitor: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
+        return None
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"buscar_conversacion_abierta_por_visitor: Error de conexión (Timeout, DNS, etc): {req_err}")
+        return None
+    except Exception as e:
+        logging.error(f"buscar_conversacion_abierta_por_visitor: Excepción al buscar convarsación: {str(e)}")    
+        return None
+
+def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
+    # Implementación arriba
+    """
+    Crea una conversación asociada a un visitante
+    """
+    access_token = get_access_token()
+    if not access_token:
+        logging.error(f"crear_conversacion_con_visitante: No se pudo obtener un access_token válido. Abortando búsqueda.")
+        return None
+    
+    logging.info(f"crear_conversacion_con_visitante: Creando conversación para el visitor_id: {visitor_id}")
+
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+
+    payload = {
+        "visitor_id": {visitor_id},
+        "department_id": SALESIQ_DEPARTMENT_ID,
+        "question": mensaje_inicial,
+        "auto_assign": True
+        }
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.get(url, headers=headers, json=payload)
+
+        logging.info(f"crear_conversacion_con_visitante: Respuesta crear conversación: {response.status_code}")
+
+        if response.status_code in [200, 201]:
+            data = response.json()
+            conversacion = data.get('data',[])
+            chat_id = conversacion.get('chat_id')
+
+            logging.info(f"crear_conversacion_con_visitante: Conversación creada: {chat_id}")
+
+            return {
+                'chat_id': chat_id,
+                'visitor_id': visitor_id,
+                'conversacion': conversacion
+            }            
+        
+        else:
+            logging.error(f"crear_conversacion_con_visitante: Error creando conversación: {response.text}")
+            return None
+
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f"crear_conversacion_con_visitante: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
+        return None
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"crear_conversacion_con_visitante: Error de conexión (Timeout, DNS, etc): {req_err}")
+        return None
+    except Exception as e:
+        logging.error(f"crear_conversacion_con_visitante: Excepción al buscar convarsación: {str(e)}")    
+        return None
+
+def enviar_mensaje_a_conversacion(chat_id, mensaje):
+    # Implementación arriba
+    """
+    Envía un mensaje a una conversación existente
+    """
+    access_token = get_access_token()
+    if not access_token:
+        logging.error(f"enviar_mensaje_a_conversacion: No se pudo obtener un access_token válido. Abortando búsqueda.")
+        return None
+    
+    logging.info(f"enviar_mensaje_a_conversacion: Enviando mensaje a conversación: {chat_id}")
+    
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{chat_id}/message"
+    
+    payload = {
+        "message": mensaje
+    }
+    
+    headers = {
+        'Authorization': f'Zoho-oauthtoken {access_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        
+        if response.status_code in [200, 201]:
+            logging.info(f"enviar_mensaje_a_conversacion: Mensaje enviado exitosamente")
+            return True
+        else:
+            logging.error(f"enviar_mensaje_a_conversacion: Error enviando mensaje: {response.status_code} - {response.text}")
+            return False
+            
+    except requests.exceptions.HTTPError as http_err:
+        logging.error(f"enviar_mensaje_a_conversacion: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
+        return None
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"enviar_mensaje_a_conversacion: Error de conexión (Timeout, DNS, etc): {req_err}")
+        return None
+    except Exception as e:
+        logging.error(f"enviar_mensaje_a_conversacion: Excepción al buscar convarsación: {str(e)}")    
+        return None
 #________________________________________________________________________________________
 #________________________________________________________________________________________
 #Funciones Principales 
@@ -440,9 +745,142 @@ def asignar_tag_a_conversacion(conversation_id, tag_id):
 @app.route('/api/from-waba', methods=['POST'])
 def from_waba():
     """
-    Función Principal
+    # 1. Recibe datos de WhatsApp desde App A
+    # 2. Extrae teléfono y mensaje
+    # 3. NUEVO: Obtener/crear visitante por teléfono → visitor_id
+    # 4. Buscar conversación abierta (CON visitor_id)
+    # 5a. Si existe: enviar mensaje a conversación
+    # 5b. Si NO existe: crear conversación (CON visitor_id)
+    # 6. Enviar mensaje
     """
-    data = request.json or {}
+    try:
+        #========================================================
+        # Paso 1: Recibir y Validar Datos
+        #========================================================
+        data = request.json or {}
+        
+        if not data:
+            logging.error(f"from-waba: No se recibieron datos en el request")
+            return jsonify({"error":"No data received"}), 400
+        
+        #extraer información del mensaje de whatsapp
+        telefono = data.get('phone') or data.get('from') or data.get('telefono')
+        mensaje = data.get('message') or data.get('text') or data.get('body')
+
+        #validar que se cuenta con los datos minimos
+        if not telefono or not mensaje:
+            logging.error(f"from-waba: Datos incompletos: - telefono: {telefono}, mensaje: {mensaje}")
+            return jsonify({
+                "error": "Missing phone or message"
+                }), 400
+        
+        logging.info(f"\n{'='*70}")
+        logging.info(f"Mensaje de Whatsapp recibido:")
+        logging.info(f"Telefono: {telefono}")
+        logging.info(f"Mensaje: {mensaje[:100]}...")
+        logging.info(f"{'='*70}\n")
+
+        #========================================================
+        # Paso 2: Obtener o crear visitante
+        #========================================================
+        logging.info(f"PASO 1: Obteniendo o creando visitante... ")
+        visitor_id = obtener_o_crear_visitante(telefono)
+
+        if not visitor_id:
+            logging.error(f"from-waba: No se pudo obtener o crear visitante")
+            return jsonify({
+                "error": "Failed to create/get visitor",
+                "phone": telefono   
+                }), 500
+
+        logging.info(f"from-waba: Visitor ID obtenido:{visitor_id}")
+
+        #========================================================
+        # Paso 3: Buscar conversaciones abiertas
+        #========================================================
+        logging.info(f"PASO 2: buscando conversación abierta... ")
+        conversacion_abierta = buscar_conversacion_abierta_por_visitor(visitor_id)
+
+        chat_id = None
+        #========================================================
+        # Paso 4: Enviar mensaje a conversación existente o crear nueva
+        #========================================================
+        if conversacion_abierta:
+            #caso A: Ya existe una conversación abierta
+            chat_id = conversacion_abierta.get('chat_id')
+            logging.info(f"PASO 3: Conversación abierta encontrada: {chat_id}")
+            logging.info(f"PASO 3: Enviando mensaje a conversación existente... ")
+
+            resultado_envio = enviar_mensaje_a_conversacion(chat_id, mensaje)
+
+            if not resultado_envio:
+                logging.error(f"PASO 3: Error al enviar mensaje a conversación: {chat_id}")
+                return jsonify({
+                    "error": "Failed to send message",
+                    "chat_id": chat_id
+                }),500
+            
+            logging.info(f"PASO 3: Mensaje Enviando exitosamente a: {chat_id} ")
+        else:
+            #Caso B: No existe conversación, crear nueva
+            logging.info(f"PASO 3: No hay conversación abierta ")
+            logging.info(f"PASO 3: Creando Nueva Conversación...")
+
+            resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
+
+            if not resultado:
+                logging.error(f"PASO 3: Error al crear conversación...")
+
+                return jsonify({
+                    "error": "Failed to create conversation",
+                    "visitor_id": visitor_id
+                }),500
+            
+            chat_id = resultado['chat_id']
+            logging.error(f"PASO 3: Nueva Conversación creada: {chat_id}")
+            
+
+        #========================================================
+        # Paso 5: Respuesta exitosa
+        #========================================================
+        logging.info(f"\n{'='*70}")
+        logging.info(f"PASO 4: PROCESO COMPLETADO EXITOSAMENTE")
+        logging.info(f"Visitor ID: {visitor_id}")
+        logging.info(f"Chat ID: {chat_id}")
+        logging.info(f"{'='*70}\n")
+        
+        return jsonify({
+            "success": True,
+            "visitor_id": visitor_id,
+            "chat_id": chat_id,
+            "phone": telefono,
+            "action": "conversation_exists" if conversacion_abierta else "conversation_created"
+        }), 200
+
+    except Exception as e:
+        logging.error(f"from-waba: Error Critico en form-waba: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+
+        return jsonify({
+            "error":"Internal server error",
+            "details":str(e)
+        }),500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     logging.info(f"/api/from-waba - mensaje recibido: {data}")
 
     user_id = data.get("user_id")
