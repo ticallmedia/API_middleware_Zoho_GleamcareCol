@@ -474,6 +474,10 @@ def buscar_visitante_por_telefono(telefono):
     
     try:
         response = requests.get(url, headers=headers)
+        logging.info(f"buscar_visitante_por_telefono: URL: {url}")
+        logging.info(f"buscar_visitante_por_telefono: response... {response.status_code}")
+        logging.info(f"buscar_visitante_por_telefono: response text... {response.text}")
+        
         
         logging.info(f"buscar_visitante_por_telefono: CONTROL...response... {response}")
 
