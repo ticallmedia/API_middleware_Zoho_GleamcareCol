@@ -455,10 +455,10 @@ def buscar_visitante_por_telefono(telefono):
     Buscar un visitante existente por número de telefono
     retorna el visitor_id si existe, None si no existe
     """
-    
-    access_token = get_access_token()
 
+    access_token = get_access_token()
     if not access_token:
+        logging.error("buscar_visitante_por_telefono: No se pudo obtener un access_token válido. Abortando búsqueda.")
         return {"error": "no_access_token"}, 401
     
     #limpiar teléfono
@@ -475,6 +475,8 @@ def buscar_visitante_por_telefono(telefono):
     try:
         response = requests.get(url, headers=headers)
         
+        logging.info(f"buscar_visitante_por_telefono: CONTROL...response... {response}")
+
         if response.status_code == 200:            
             data = response.json()
             visitantes = data.get('data',[])
@@ -768,7 +770,7 @@ def from_waba():
             return jsonify({"error":"No data received"}), 400
         
         #extraer información del mensaje de whatsapp
-        telefono = data.get('user_id') or data.get('phone') or data.get('from') or data.get('telefono')
+        telefono = data.get('user_id') or data.get('phone') #or data.get('from') or data.get('telefono')
         mensaje = data.get('message') or data.get('text') or data.get('body')
 
         #validar que se cuenta con los datos minimos
