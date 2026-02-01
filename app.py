@@ -764,7 +764,7 @@ def from_waba():
             return jsonify({"error":"No data received"}), 400
         
         #extraer información del mensaje de whatsapp
-        telefono = data.get('phone') or data.get('from') or data.get('telefono')
+        telefono = data.get('user_id') or data.get('phone') or data.get('from') or data.get('telefono')
         mensaje = data.get('message') or data.get('text') or data.get('body')
 
         #validar que se cuenta con los datos minimos
