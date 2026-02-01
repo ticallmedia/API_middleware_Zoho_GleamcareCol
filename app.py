@@ -479,10 +479,14 @@ def buscar_visitante_por_telefono(telefono):
             data = response.json()
             visitantes = data.get('data',[])
 
+            logging.info(f"buscar_visitante_por_telefono: CONTROL...visitantes... {visitantes}")
+
             #Buscar visitante que coincida con el teléfono
             for visitante in visitantes:
                 phone_visitante = visitante.get('phone','')
                 phone_limpio = limpiar_telefono(phone_visitante)
+                logging.info(f"buscar_visitante_por_telefono: CONTROL...phone_visitante...:{phone_visitante}")
+                logging.info(f"buscar_visitante_por_telefono: CONTROL...phone_limpio...:{phone_limpio}")
 
                 if phone_limpio == telefono_limpio:
                     visitor_id = visitante.id('id')
