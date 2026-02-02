@@ -572,10 +572,11 @@ def buscar_conversacion_abierta_por_visitor(telefono):
     Retona la conversación si existe, None si no
     """
     access_token = get_access_token()
+    """
     if not access_token:
         logging.error(f"buscar_conversacion_abierta_por_visitor: No se pudo obtener un access_token válido. Abortando búsqueda.")
         return None
-    
+    """
     logging.info(f"buscar_conversacion_abierta_por_visitor: Buscando conversación abierta para visitor_id: {telefono}")
 
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
@@ -662,7 +663,8 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        #response = requests.post(url, headers=headers, json=payload, timeout=10)
+        response = requests.get(url, headers=headers, json=payload, timeout=10)
 
         logging.info(f"crear_conversacion_con_visitante: Respuesta crear conversación: {response.status_code}")
 
