@@ -639,10 +639,11 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
     Crea una conversación asociada a un visitante
     """
     access_token = get_access_token()
+    """
     if not access_token:
         logging.error(f"crear_conversacion_con_visitante: No se pudo obtener un access_token válido. Abortando búsqueda.")
         return None
-    
+    """
     logging.info(f"crear_conversacion_con_visitante: Creando conversación para el visitor_id: {visitor_id}")
 
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
@@ -668,16 +669,27 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
         if response.status_code in [200, 201]:
             data = response.json()
             conversacion = data.get('data',[])
-            chat_id = conversacion.get('chat_id')
 
-            logging.info(f"crear_conversacion_con_visitante: Conversación creada: {chat_id}")
+            conversation_id = data.get('id')
+            visitor = data.get('visitor')
+            #chat_id = conversacion.get('chat_id')
 
+            #logging.info(f"crear_conversacion_con_visitante: Conversación creada: {chat_id}")
+            logging.info(f"crear_conversacion_con_visitante: Conversación creada: {visitor}")
+
+            """
             return {
                 'chat_id': chat_id,
                 'visitor_id': visitor_id,
                 'conversacion': conversacion
             }            
-        
+            """
+            return {
+                'conversacion_id': conversation_id,
+                'visitor_id': visitor,
+                'conversacion': conversacion
+            }
+
         else:
             logging.error(f"crear_conversacion_con_visitante: Error creando conversación: {response.text}")
             return None
