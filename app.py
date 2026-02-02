@@ -236,14 +236,16 @@ def create_or_update_visitor(visitor_id, nombre_completo, telefono, nombre=None,
         return {"error": str(e)}, 500
 
 
-def create_conversation_if_configured(visitor_user_id, nombre_completo, nombre, apellido, email, telefono,question):
+#def create_conversation_if_configured(visitor_user_id, nombre_completo, nombre, apellido, email, telefono,question):
+def create_conversation_if_configured(visitor_user_id, telefono,question):
     """
     Crea conversaciones en SalesIQ
     """
     
     url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
     payload = {
-        "visitor": {"user_id": visitor_user_id, "name": nombre_completo, "first_name": nombre, "last_name": apellido, "email": email, "phone": telefono},
+        #"visitor": {"user_id": visitor_user_id, "name": nombre_completo, "first_name": nombre, "last_name": apellido, "email": email, "phone": telefono},
+        "visitor": {"user_id": visitor_user_id,  "phone": telefono},
         "app_id": SALESIQ_APP_ID,
         "department_id": SALESIQ_DEPARTMENT_ID,
         "question": question
@@ -862,7 +864,9 @@ def from_waba():
 
             visitor_id = f"whatsapp_{telefono}"
 
-            resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
+            #resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
+            resultado = create_conversation_if_configured(visitor_id, telefono, mensaje)
+            
 
             if not resultado:
                 logging.error(f"PASO 3: Error al crear conversación...")
