@@ -662,7 +662,7 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
     }
 
     try:
-        response = requests.get(url, headers=headers, json=payload, timeout=10)
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
 
         logging.info(f"crear_conversacion_con_visitante: Respuesta crear conversación: {response.status_code}")
 
