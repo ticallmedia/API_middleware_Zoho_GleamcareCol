@@ -639,29 +639,56 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
     """
     Crea una conversación asociada a un visitante
     """
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    access_token = get_access_token()
+    logging.info(f"crear_conversacion_con_visitante: Creando conversación para el visitor_id: {visitor_id}")
+
+    #url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
+    url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
 
     payload = {
         "visitor": {"user_id": visitor_id, "phone": telefono},
         "app_id": SALESIQ_APP_ID,
         "department_id": SALESIQ_DEPARTMENT_ID,
-        "question": mensaje_inicial
-    }
+        "question": mensaje_inicial #,"auto_assign": True
+        }
 
-    access_token = get_access_token()
-    
     headers = {
         "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json"
     }
 
-    logging.info(f"crear_conversacion_con_visitante: Creando conversación para el visitor_id: {visitor_id}")  
-
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=10)
+
         logging.info(f"crear_conversacion_con_visitante: Respuesta crear conversación: {response.status_code}")
-        return response.json()
-    
+
+        if response.status_code in [200, 201]:
+            data = response.json()
+            conversacion = data.get('data',[])
+
+            conversation_id = data.get('id')
+            visitor = data.get('visitor',{})
+            #chat_id = conversacion.get('chat_id')
+
+            #logging.info(f"crear_conversacion_con_visitante: Conversación creada: {chat_id}")
+            logging.info(f"crear_conversacion_con_visitante: Conversación creada: {visitor}")
+
+            """
+            return {
+                'chat_id': chat_id,
+                'visitor_id': visitor_id,
+                'conversacion': conversacion
+            }            
+            """
+            return {
+                'conversacion_id': conversation_id,
+                'visitor_id': visitor,
+                'conversacion': conversacion
+            }
+
+        else:
+            logging.error(f"crear_conversacion_con_visitante: Error creando conversación: {response.text}")
+            return None
     except Exception as e:
         logging.error(f"crear_conversacion_con_visitante: Excepción al buscar convarsación: {str(e)}")    
         return {"error": str(e)}
@@ -840,8 +867,8 @@ def from_waba():
 
             visitor_id = f"whatsapp_{telefono}"
 
-            #resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
-            resultado = create_conversation_if_configured(visitor_id, telefono, mensaje)
+            resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
+            #resultado = create_conversation_if_configured(visitor_id, telefono, mensaje)
             
 
             if not resultado:
