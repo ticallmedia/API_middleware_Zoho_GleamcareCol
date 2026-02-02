@@ -639,23 +639,23 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
     """
     Crea una conversación asociada a un visitante
     """
-    access_token = get_access_token()
-
-    logging.info(f"crear_conversacion_con_visitante: Creando conversación para el visitor_id: {visitor_id}")
-
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
 
     payload = {
         "visitor": {"user_id": visitor_id, "phone": telefono},
         "app_id": SALESIQ_APP_ID,
         "department_id": SALESIQ_DEPARTMENT_ID,
-        "question": mensaje_inicial #,"auto_assign": True
-        }
+        "question": mensaje_inicial
+    }
 
+    access_token = get_access_token()
+    
     headers = {
         "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json"
-    }  
+    }
+
+    logging.info(f"crear_conversacion_con_visitante: Creando conversación para el visitor_id: {visitor_id}")  
 
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=10)
