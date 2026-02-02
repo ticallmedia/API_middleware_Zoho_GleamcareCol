@@ -671,7 +671,7 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
             conversacion = data.get('data',[])
 
             conversation_id = data.get('id')
-            visitor = data.get('visitor')
+            visitor = data.get('visitor',{})
             #chat_id = conversacion.get('chat_id')
 
             #logging.info(f"crear_conversacion_con_visitante: Conversación creada: {chat_id}")
@@ -712,15 +712,17 @@ def enviar_mensaje_a_conversacion(conversacion_abierta, mensaje):
     Envía un mensaje a una conversación existente
     """
     access_token = get_access_token()
+    """
     if not access_token:
         logging.error(f"enviar_mensaje_a_conversacion: No se pudo obtener un access_token válido. Abortando búsqueda.")
         return None
+    """
     
     #logging.info(f"enviar_mensaje_a_conversacion: Enviando mensaje a conversación: {chat_id}")
     logging.info(f"enviar_mensaje_a_conversacion: Enviando mensaje a conversación: {conversacion_abierta}")
 
     #url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{chat_id}/message"
-    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversacion_abierta}/message"
+    url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversacion_abierta}/messages"
     
     payload = {
         "message": mensaje
@@ -888,8 +890,9 @@ def from_waba():
                     "visitor_id": visitor_id
                 }),500
             
-            chat_id = resultado['chat_id']
-            logging.error(f"PASO 3: Nueva Conversación creada: {chat_id}")
+            #chat_id = resultado['chat_id']
+            #logging.error(f"PASO 3: Nueva Conversación creada: {chat_id}")
+
             
 
         #========================================================
@@ -898,13 +901,13 @@ def from_waba():
         logging.info(f"\n{'='*70}")
         logging.info(f"PASO 4: PROCESO COMPLETADO EXITOSAMENTE")
         logging.info(f"Visitor ID: {visitor_id}")
-        logging.info(f"Chat ID: {chat_id}")
+        #logging.info(f"Chat ID: {chat_id}")
         logging.info(f"\n{'='*70}\n")
         
         return jsonify({
             "success": True,
             "visitor_id": visitor_id,
-            "chat_id": chat_id,
+            #"chat_id": chat_id,
             "phone": telefono,
             "action": "conversation_exists" if conversacion_abierta else "conversation_created"
         }), 200
