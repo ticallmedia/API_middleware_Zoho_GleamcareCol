@@ -876,8 +876,8 @@ def from_waba():
 
             visitor_id = f"whatsapp_{telefono}"
 
-            #resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
-            resultado = create_conversation_if_configured(visitor_id, telefono, mensaje)
+            resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
+            #resultado = create_conversation_if_configured(visitor_id, telefono, mensaje)
             
 
             if not resultado:
