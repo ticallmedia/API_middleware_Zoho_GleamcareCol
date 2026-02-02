@@ -655,56 +655,16 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
     headers = {
         "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json"
-    }
+    }  
 
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=10)
-
         logging.info(f"crear_conversacion_con_visitante: Respuesta crear conversación: {response.status_code}")
-
-        data = response.json()
-        conversacion = data.get('data',[])
-        conversation_id = data.get('id')
-        visitor = data.get('visitor',{})
-
-        return {
-                'conversacion_id': conversation_id,
-                'visitor_id': visitor,
-                'conversacion': conversacion
-            }
+        return response.json()
     
-        """
-        if response.status_code in [200, 201]:
-            data = response.json()
-            conversacion = data.get('data',[])
-
-            conversation_id = data.get('id')
-            visitor = data.get('visitor',{})
-            #chat_id = conversacion.get('chat_id')
-
-            #logging.info(f"crear_conversacion_con_visitante: Conversación creada: {chat_id}")
-            logging.info(f"crear_conversacion_con_visitante: Conversación creada: {visitor}")
-
-            return {
-                'chat_id': chat_id,
-                'visitor_id': visitor_id,
-                'conversacion': conversacion
-            } 
-
-        else:
-            logging.error(f"crear_conversacion_con_visitante: Error creando conversación: {response.text}")
-            return None
-        """
-
-    except requests.exceptions.HTTPError as http_err:
-        logging.error(f"crear_conversacion_con_visitante: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
-        return None
-    except requests.exceptions.RequestException as req_err:
-        logging.error(f"crear_conversacion_con_visitante: Error de conexión (Timeout, DNS, etc): {req_err}")
-        return None
     except Exception as e:
         logging.error(f"crear_conversacion_con_visitante: Excepción al buscar convarsación: {str(e)}")    
-        return None
+        return {"error": str(e)}
 
 #def enviar_mensaje_a_conversacion(chat_id, mensaje):
 def enviar_mensaje_a_conversacion(conversacion_abierta, mensaje):
