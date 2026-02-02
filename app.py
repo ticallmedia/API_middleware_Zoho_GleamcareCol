@@ -640,11 +640,7 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
     Crea una conversación asociada a un visitante
     """
     access_token = get_access_token()
-    """
-    if not access_token:
-        logging.error(f"crear_conversacion_con_visitante: No se pudo obtener un access_token válido. Abortando búsqueda.")
-        return None
-    """
+
     logging.info(f"crear_conversacion_con_visitante: Creando conversación para el visitor_id: {visitor_id}")
 
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
@@ -663,8 +659,8 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
     }
 
     try:
-        #response = requests.post(url, headers=headers, json=payload, timeout=10)
-        response = requests.get(url, headers=headers, json=payload, timeout=10)
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        #response = requests.get(url, headers=headers, json=payload, timeout=10)
 
         logging.info(f"crear_conversacion_con_visitante: Respuesta crear conversación: {response.status_code}")
 
@@ -880,8 +876,8 @@ def from_waba():
 
             visitor_id = f"whatsapp_{telefono}"
 
-            resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
-            #resultado = create_conversation_if_configured(visitor_id, telefono, mensaje)
+            #resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
+            resultado = create_conversation_if_configured(visitor_id, telefono, mensaje)
             
 
             if not resultado:
