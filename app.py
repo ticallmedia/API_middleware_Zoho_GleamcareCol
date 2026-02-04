@@ -711,14 +711,14 @@ def enviar_mensaje_a_conversacion(conversacion_abierta, mensaje):
 
     #url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{chat_id}/message"
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations/{conversacion_abierta}/messages"
-    
-    payload = {
-        "message": mensaje
-    }
-    
+        
     headers = {
         'Authorization': f'Zoho-oauthtoken {access_token}',
         'Content-Type': 'application/json'
+    }
+
+    payload = {
+        "text": mensaje
     }
     
     try:
