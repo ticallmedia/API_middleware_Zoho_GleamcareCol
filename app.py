@@ -605,6 +605,7 @@ def buscar_conversacion_abierta_por_visitor(telefono):
             for conv in conversaciones:
                 conv_visitor_id = conv.get('visitor',{}).get('id','')
                 conv_phone = conv.get('visitor',{}).get('phone','')
+                conv_id = conv.get('id', '') 
                 #chat_status = conv.get('chat_status',{})
                 #status_key = chat_status.get('status_key','')
 
@@ -613,8 +614,8 @@ def buscar_conversacion_abierta_por_visitor(telefono):
                 logging.info(f"buscar_conversacion_abierta_por_visitor: Numero de telefono del visitante: {conv_phone}")
                 if conv_phone == telefono:
                     #chat_id = conv.get('chat_id')
-                    logging.info(f"buscar_conversacion_abierta_por_visitor: Conversación abierta encontrada: {conv_visitor_id}")
-                    return conv_visitor_id
+                    logging.info(f"buscar_conversacion_abierta_por_visitor: Conversación abierta encontrada: {conv_id}, para el visitor: {conv_visitor_id}")
+                    return conv_id
             
             #logging.info(f"buscar_conversacion_abierta_por_visitor: No hay conversaciones abierta para el visitor_id {visitor_id}")
             logging.info(f"buscar_conversacion_abierta_por_visitor: No hay conversaciones abierta para el visitor_id {conv_visitor_id}")
