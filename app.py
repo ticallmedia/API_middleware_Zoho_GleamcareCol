@@ -723,14 +723,19 @@ def enviar_mensaje_a_conversacion(conversacion_abierta, mensaje):
     
     try:
         response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()  # Verificar si hubo errores HTTP
         
+        response_data =  response.json()
+        logging.info(f"enviar_mensaje_a_conversacion: respuesta de API: {response_data}")
+        return True
+        """
         if response.status_code in [200, 201]:
             logging.info(f"enviar_mensaje_a_conversacion: Mensaje enviado exitosamente, a la conversación: {conversacion_abierta}")
             return True
         else:
             logging.error(f"enviar_mensaje_a_conversacion: Error enviando mensaje: {response.status_code} - {response.text}")
             return False
-            
+        """    
     except requests.exceptions.HTTPError as http_err:
         logging.error(f"enviar_mensaje_a_conversacion: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
         return None
@@ -858,7 +863,7 @@ def from_waba():
                     "chat_id": chat_id
                 }),500
             
-            logging.info(f"PASO 3: Mensaje Enviando exitosamente a: {chat_id} ")
+            logging.info(f"PASO 3: Mensaje Enviando exitosamente a: {conversacion_abierta} ")
         else:
             #Caso B: No existe conversación, crear nueva
             logging.info(f"PASO 3: No hay conversación abierta ")
