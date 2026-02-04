@@ -614,7 +614,7 @@ def buscar_conversacion_abierta_por_visitor(telefono):
                 if conv_phone == telefono:
                     #chat_id = conv.get('chat_id')
                     logging.info(f"buscar_conversacion_abierta_por_visitor: Conversación abierta encontrada: {conv_visitor_id}")
-                    return conv
+                    return conv_visitor_id
             
             #logging.info(f"buscar_conversacion_abierta_por_visitor: No hay conversaciones abierta para el visitor_id {visitor_id}")
             logging.info(f"buscar_conversacion_abierta_por_visitor: No hay conversaciones abierta para el visitor_id {conv_visitor_id}")
@@ -642,7 +642,6 @@ def crear_conversacion_con_visitante(visitor_id, telefono, mensaje_inicial):
     access_token = get_access_token()
     logging.info(f"crear_conversacion_con_visitante: Creando conversación para el visitor_id: {visitor_id}")
 
-    #url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
     url = f"https://salesiq.zoho.com/visitor/v2/{ZOHO_PORTAL_NAME}/conversations"
 
     payload = {
@@ -870,7 +869,6 @@ def from_waba():
             resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje)
             #resultado = create_conversation_if_configured(visitor_id, telefono, mensaje)
             
-
             if not resultado:
                 logging.error(f"PASO 3: Error al crear conversación...")
 
