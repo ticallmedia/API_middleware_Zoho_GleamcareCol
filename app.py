@@ -572,11 +572,7 @@ def buscar_conversacion_abierta_por_visitor(telefono):
     Retona la conversación si existe, None si no
     """
     access_token = get_access_token()
-    """
-    if not access_token:
-        logging.error(f"buscar_conversacion_abierta_por_visitor: No se pudo obtener un access_token válido. Abortando búsqueda.")
-        return None
-    """
+
     logging.info(f"buscar_conversacion_abierta_por_visitor: Buscando conversación abierta para visitor_id: {telefono}")
 
     url = f"{ZOHO_SALESIQ_BASE}/{ZOHO_PORTAL_NAME}/conversations"
@@ -590,7 +586,6 @@ def buscar_conversacion_abierta_por_visitor(telefono):
         "phone": telefono,
         "status": "open"
     }
-    
 
     try:
         #response = requests.get(url, headers=headers)
@@ -726,17 +721,19 @@ def enviar_mensaje_a_conversacion(conversacion_abierta, mensaje):
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()  # Verificar si hubo errores HTTP
         
+        """
         response_data =  response.json()
         logging.info(f"enviar_mensaje_a_conversacion: respuesta de API: {response_data}")
         return True
         """
+        
         if response.status_code in [200, 201]:
             logging.info(f"enviar_mensaje_a_conversacion: Mensaje enviado exitosamente, a la conversación: {conversacion_abierta}")
             return True
         else:
             logging.error(f"enviar_mensaje_a_conversacion: Error enviando mensaje: {response.status_code} - {response.text}")
             return False
-        """    
+            
     except requests.exceptions.HTTPError as http_err:
         logging.error(f"enviar_mensaje_a_conversacion: Error HTTP de la API de Zoho. Status: {http_err.response.status_code}, Body: {http_err.response.text}")
         return None
