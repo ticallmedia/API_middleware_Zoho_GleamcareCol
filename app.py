@@ -840,13 +840,13 @@ def from_waba():
         logging.info(f"from-waba: Visitor ID obtenido:{visitor_id}")
         """
         visitor_id = f"whatsapp_{telefono}" #dato provisional
-        
+
         #========================================================
         # Paso 3: Buscar conversaciones abiertas
         #========================================================
         logging.info(f"PASO 2: buscando conversación abierta... ")
         #conversacion_abierta = buscar_conversacion_abierta_por_visitor(visitor_id)
-        conversacion_abierta = buscar_conversacion_abierta_por_visitor(telefono)
+        conversacion_abierta, visitor_id = buscar_conversacion_abierta_por_visitor(telefono)
 
         chat_id = None
         #========================================================
@@ -860,7 +860,7 @@ def from_waba():
             logging.info(f"PASO 3: Enviando mensaje a conversación existente... ")
 
             #resultado_envio = enviar_mensaje_a_conversacion(chat_id, mensaje)
-            resultado_envio, visitor_id = enviar_mensaje_a_conversacion(conversacion_abierta, mensaje_formateado)
+            resultado_envio = enviar_mensaje_a_conversacion(conversacion_abierta, mensaje_formateado)
 
             if not resultado_envio:
                 logging.error(f"PASO 3: Error al enviar mensaje a conversación: {chat_id}")
