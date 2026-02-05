@@ -583,7 +583,7 @@ def buscar_conversacion_abierta_por_visitor(telefono):
                 if conv_phone == telefono:
                     #chat_id = conv.get('chat_id')
                     logging.info(f"buscar_conversacion_abierta_por_visitor: Conversación abierta encontrada: {conv_id}, para el visitor: {conv_visitor_id}")
-                    return conv_id
+                    return conv_id, conv_visitor_id
             
             #logging.info(f"buscar_conversacion_abierta_por_visitor: No hay conversaciones abierta para el visitor_id {visitor_id}")
             logging.info(f"buscar_conversacion_abierta_por_visitor: No hay conversaciones abierta para el visitor_id {conv_visitor_id}")
@@ -858,7 +858,7 @@ def from_waba():
             logging.info(f"PASO 3: Enviando mensaje a conversación existente... ")
 
             #resultado_envio = enviar_mensaje_a_conversacion(chat_id, mensaje)
-            resultado_envio = enviar_mensaje_a_conversacion(conversacion_abierta, mensaje_formateado)
+            resultado_envio, visitor_id = enviar_mensaje_a_conversacion(conversacion_abierta, mensaje_formateado)
 
             if not resultado_envio:
                 logging.error(f"PASO 3: Error al enviar mensaje a conversación: {chat_id}")
@@ -873,7 +873,7 @@ def from_waba():
             logging.info(f"PASO 3: No hay conversación abierta ")
             logging.info(f"PASO 3: Creando Nueva Conversación...")
 
-            visitor_id = f"whatsapp_{telefono}"
+            #visitor_id = f"whatsapp_{telefono}"
 
             resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje_formateado)
             
