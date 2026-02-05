@@ -839,6 +839,8 @@ def from_waba():
 
         logging.info(f"from-waba: Visitor ID obtenido:{visitor_id}")
         """
+        visitor_id = f"whatsapp_{telefono}" #dato provisional
+        
         #========================================================
         # Paso 3: Buscar conversaciones abiertas
         #========================================================
@@ -872,8 +874,6 @@ def from_waba():
             #Caso B: No existe conversación, crear nueva
             logging.info(f"PASO 3: No hay conversación abierta ")
             logging.info(f"PASO 3: Creando Nueva Conversación...")
-
-            #visitor_id = f"whatsapp_{telefono}"
 
             resultado = crear_conversacion_con_visitante(visitor_id, telefono, mensaje_formateado)
             
