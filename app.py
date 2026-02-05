@@ -583,7 +583,7 @@ def buscar_conversacion_abierta_por_visitor(telefono):
                 if conv_phone == telefono:
                     #chat_id = conv.get('chat_id')
                     logging.info(f"buscar_conversacion_abierta_por_visitor: Conversación abierta encontrada: {conv_id}, para el visitor: {conv_visitor_id}")
-                    return conv_id, conv_visitor_id
+                    return conv_id
             
             #logging.info(f"buscar_conversacion_abierta_por_visitor: No hay conversaciones abierta para el visitor_id {visitor_id}")
             logging.info(f"buscar_conversacion_abierta_por_visitor: No hay conversaciones abierta para el visitor_id {conv_visitor_id}")
@@ -846,7 +846,7 @@ def from_waba():
         #========================================================
         logging.info(f"PASO 2: buscando conversación abierta... ")
         #conversacion_abierta = buscar_conversacion_abierta_por_visitor(visitor_id)
-        conversacion_abierta, visitor_id = buscar_conversacion_abierta_por_visitor(telefono)
+        conversacion_abierta = buscar_conversacion_abierta_por_visitor(telefono)
 
         chat_id = None
         #========================================================
