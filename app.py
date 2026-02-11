@@ -674,23 +674,17 @@ def enviar_mensaje_a_conversacion(conversacion_abierta, mensaje):
     elif "btn_no1" in mensaje:
         mensaje = "[👤 Usuario]: No"
     elif "btn_1" in mensaje:
-        mensaje = "[👤 Usuario]: 📱DDA & Mobile Campaigns"
+        mensaje = "[👤 Usuario]: 🔄 TicAll Flow®️Ecosystem"
     elif "btn_2" in mensaje:
-        mensaje = "[👤 Usuario]: 📊Display Media Planning"
+        mensaje = "[👤 Usuario]: 🤖 Custom AI Agents"
     elif "btn_3" in mensaje:
-        mensaje = "[👤 Usuario]: 🛒Ecommerce Strategy"
+        mensaje = "[👤 Usuario]: 🛒 Ecommerce Architecture"
     elif "btn_4" in mensaje:
-        mensaje = "[👤 Usuario]: 📣Paid Social Media"
+        mensaje = "[👤 Usuario]: ⚡ Performance Arch"
     elif "btn_5" in mensaje:
-        mensaje = "[👤 Usuario]: 🎯Audience Studies"
+        mensaje = "[👤 Usuario]: 📈 Demand Generation"
     elif "btn_6" in mensaje:
-        mensaje = "[👤 Usuario]: 🚀Digital Marketing"
-    elif "btn_7" in mensaje:
-        mensaje = "[👤 Usuario]: 📰Media Strategy"
-    elif "btn_8" in mensaje:
-        mensaje = "[👤 Usuario]: 🤖Custom Bot Development"
-    elif "btn_9" in mensaje:
-        mensaje = "[👤 Usuario]: 🌐WebSites"
+        mensaje = "[👤 Usuario]: 🌐 High-Performance Webs"
     elif "btn_0" in mensaje:
         mensaje = "[👤 Usuario]: 🗣️Talk to an Agent"
     else:
