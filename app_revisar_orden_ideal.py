@@ -99,7 +99,8 @@ def oauth_callback():
 
     # Intercambia el authorization code por tokens
     token_url = "https://accounts.zoho.com/oauth/v2/token"
-    params = {
+    #params = {
+    payload = {
         "code": code,
         "client_id": ZOHO_CLIENT_ID,
         "client_secret": ZOHO_CLIENT_SECRET,
@@ -107,7 +108,8 @@ def oauth_callback():
         "grant_type": "authorization_code"
     }
     try:
-        r = requests.post(token_url, params=params, timeout=10)
+        #r = requests.post(token_url, params=params, timeout=10)
+        r = requests.post(token_url, data=payload, timeout=10)
         data = r.json()
         logging.info(f"oauth2callback: token exchange -> {data}")
 
