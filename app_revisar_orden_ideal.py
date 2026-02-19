@@ -51,6 +51,8 @@ Actualiza 08/01/2026:
 - Se buscar Visitante si no existe crea visisitante y con el fin de poder visitor_id, y 
 con este ultimo buscar una nueva conversación, si no existe crearla.
 
+Revisión
+
 """
 #________________________________________________________________________________________
 # Integración WABA (App A)--- Zoho SalesIQ (App B, middleware)
