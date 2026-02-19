@@ -93,7 +93,7 @@ def oauth_callback():
     if not (ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET):
         return "Faltan ZOHO_CLIENT_ID o ZOHO_CLIENT_SECRET en variables de entorno.", 500
 
-    REDIRECT_URI = "https://api-middleware-zoho.onrender.com/oauth2callback"
+    REDIRECT_URI = "https://api-middleware-zoho-gleamcarecol.onrender.com/oauth2callback"
 
     # Intercambia el authorization code por tokens
     token_url = "https://accounts.zoho.com/oauth/v2/token"
