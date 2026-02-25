@@ -328,25 +328,27 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
     elif "btn_no1" in mensaje:
         mensaje = "[👤 Usuario]: No"
     elif "btn_1" in mensaje:
-        mensaje = "[👤 Usuario]: 📱DDA & Mobile Campaigns"
+        mensaje = "[👤 Usuario]: 🌟Micropigmen. Cejas"
     elif "btn_2" in mensaje:
-        mensaje = "[👤 Usuario]: 📊Display Media Planning"
+        mensaje = "[👤 Usuario]: ✨Retoque Cejas"
     elif "btn_3" in mensaje:
-        mensaje = "[👤 Usuario]: 🛒Ecommerce Strategy"
+        mensaje = "[👤 Usuario]: 💋Micropigmen. Labios"
     elif "btn_4" in mensaje:
-        mensaje = "[👤 Usuario]: 📣Paid Social Media"
+        mensaje = "[👤 Usuario]: ✨Retoque Labios"
     elif "btn_5" in mensaje:
-        mensaje = "[👤 Usuario]: 🎯Audience Studies"
+        mensaje = "[👤 Usuario]: ⭐Laminado Cejas"
     elif "btn_6" in mensaje:
-        mensaje = "[👤 Usuario]: 🚀Digital Marketing"
+        mensaje = "[👤 Usuario]: 💕Lifting Pestañas"
     elif "btn_7" in mensaje:
-        mensaje = "[👤 Usuario]: 📰Media Strategy"
+        mensaje = "[👤 Usuario]: 💞Extensión Pestañas"
     elif "btn_8" in mensaje:
-        mensaje = "[👤 Usuario]: 🤖Custom Bot Development"
+        mensaje = "[👤 Usuario]: 💫Diseño Cejas con henna"
     elif "btn_9" in mensaje:
-        mensaje = "[👤 Usuario]: 🌐WebSites"
+        mensaje = "[👤 Usuario]: 🌸Depilación Corporal"
+    elif "btn_10" in mensaje:
+        mensaje = "[👤 Usuario]: 🪷Depilación Facial"
     elif "btn_0" in mensaje:
-        mensaje = "[👤 Usuario]: 🗣️Talk to an Agent"
+        mensaje = "[👤 Usuario]: 📞Hablar con una experta"
     else:
         mensaje
 
