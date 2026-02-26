@@ -10,7 +10,7 @@ import logging
 """
 App middleware Zoho
 
-Versión: 1.0
+Versión: 1.0 Actualiza 25/02/2026:
 
 Descripción: 
 
@@ -21,15 +21,8 @@ Caracteristicas:
 - Cargar variables de entorno desde .env
 - no cuenta con bd
 - Captura mensaja a mensaje de la App A hacia App b y finalmente a Zoho SalesIQ
-
-Versión: 1.1
-
 - Se agrega creacion de tabla de visitantes zoho, para capturar el visitor_id y evitar crea
 un chat por cada mensaje del usuario
-
-
-Versión: 1.2
-
 - Se establece generación de token provicional para abrir conversaciones
 - Mensaje de apertura de chat
 - Identificacion de conversación, se crea funcion  -- busca_conversacion(phone)
@@ -38,16 +31,8 @@ Versión: 1.2
 - Se agrega variables globales CACHED_ACCESS_TOKEN, TOKEN_EXPIRATION_TIME para consultar access_token y solo crear cuando sea necesario
 - Se agrega JSONDecodeError, debido a que habia respuestas que llegaban a zoho, y devolvian a la 
 api un valor vacio que la Api persivia como un error, se agrega para hacer una excepcion y que continue el flujo 
-
-Versión: 1.3
-
-Actualiza 08/01/2026:
 - Se configura Flujo de Trabajo en Zoho Sales IQ, para configurar el webhook desde Zoho
 - Se crea funcion from_zoho(): que realiza la captura del webhook y se envia a la App A
-
-Versión: 1.4
-
-Actualiza 08/01/2026:
 - Se buscar Visitante si no existe crea visisitante y con el fin de poder visitor_id, y 
 con este ultimo buscar una nueva conversación, si no existe crearla.
 
@@ -676,19 +661,27 @@ def enviar_mensaje_a_conversacion(conversacion_abierta, mensaje):
     elif "btn_no1" in mensaje:
         mensaje = "[👤 Usuario]: No"
     elif "btn_1" in mensaje:
-        mensaje = "[👤 Usuario]: 🔄TicAll Flow®️Ecosys"
+        mensaje = "[👤 Usuario]: 🌟Micropigmen. Ceja"
     elif "btn_2" in mensaje:
-        mensaje = "[👤 Usuario]: 🤖Custom AI Agents"
+        mensaje = "[👤 Usuario]: ✨Retoque Cejas"
     elif "btn_3" in mensaje:
-        mensaje = "[👤 Usuario]: 🛒Ecommerce Arch"
+        mensaje = "[👤 Usuario]: 💋Micropigmen. Labios"
     elif "btn_4" in mensaje:
-        mensaje = "[👤 Usuario]: ⚡Performance Arch"
+        mensaje = "[👤 Usuario]: ✨Retoque Labios"
     elif "btn_5" in mensaje:
-        mensaje = "[👤 Usuario]: 📈Demand Generation"
+        mensaje = "[👤 Usuario]: ⭐Laminado Cejas"
     elif "btn_6" in mensaje:
-        mensaje = "[👤 Usuario]: 🌐High-Performance Webs"
+        mensaje = "[👤 Usuario]: 💕Lifting Pestañas"
+    elif "btn_7" in mensaje:
+        mensaje = "[👤 Usuario]: 💞Extensión Pestañas"
+    elif "btn_8" in mensaje:
+        mensaje = "[👤 Usuario]: 💫Diseño Cejas con henna"
+    elif "btn_9" in mensaje:
+        mensaje = "[👤 Usuario]: 🌸Depilación Corporal"
+    elif "btn_10" in mensaje:
+        mensaje = "[👤 Usuario]: 🪷Depilación Facial"
     elif "btn_0" in mensaje:
-        mensaje = "[👤 Usuario]: 🗣️Talk to an Agent"
+        mensaje = "[👤 Usuario]: 📞Hablar con una experta"
     else:
         mensaje
             
