@@ -312,7 +312,7 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
         mensaje = "[👤 Usuario]: Si"
     elif "btn_no1" in mensaje:
         mensaje = "[👤 Usuario]: No"
-    elif "btn_1" in mensaje:
+    elif mensaje == "btn_1":
         mensaje = "[👤 Usuario]: 🌟Micropigmen. Cejas"
     elif "btn_2" in mensaje:
         mensaje = "[👤 Usuario]: ✨Retoque Cejas"
@@ -330,7 +330,7 @@ def envio_mesaje_a_conversacion(conversation_id,mensaje):
         mensaje = "[👤 Usuario]: 💫Diseño Cejas con henna"
     elif "btn_9" in mensaje:
         mensaje = "[👤 Usuario]: 🌸Depilación Corporal"
-    elif "btn_10" in mensaje:
+    elif mensaje == "btn_10":
         mensaje = "[👤 Usuario]: 🪷Depilación Facial"
     elif "btn_0" in mensaje:
         mensaje = "[👤 Usuario]: 📞Hablar con una experta"
